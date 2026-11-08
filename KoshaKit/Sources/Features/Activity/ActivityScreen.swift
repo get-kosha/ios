@@ -97,17 +97,24 @@ struct ActivityScreen: View {
     }
 
     private var searchRow: some View {
-        HStack(spacing: 8) {
+        let c = theme.colors
+        return HStack(spacing: 8) {
             KField(L.tx_search_placeholder(), text: Binding(get: { typed }, set: { typed = String($0.prefix(40)) }),
                    icon: "magnifying-glass")
                 .keyboard(.search)
-            IconButton("funnel", label: filters.count > 0 ? L.tx_filters_on(count: String(filters.count)) : L.tx_filters(),
-                       solid: true) { showFilters = true }
-                .overlay(alignment: .topTrailing) {
-                    if filters.count > 0 {
-                        Circle().fill(theme.colors.selection).frame(width: 8, height: 8).padding(8)
+            // A rounded square beside the field (Activity.dc.html: .ibtn.solid with radius 12), as tall as the field.
+            Button { showFilters = true } label: {
+                PhIcon("funnel", size: 22, color: c.ink2)
+                    .frame(width: 48, height: 48)
+                    .background(c.surface, in: .rect(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(c.line))
+                    .overlay(alignment: .topTrailing) {
+                        if filters.count > 0 { Circle().fill(c.selection).frame(width: 8, height: 8).padding(7) }
                     }
-                }
+                    .contentShape(.rect(cornerRadius: 12))
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel(filters.count > 0 ? L.tx_filters_on(count: String(filters.count)) : L.tx_filters())
         }
     }
 
