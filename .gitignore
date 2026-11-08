@@ -12,9 +12,8 @@ DerivedData/
 *.dSYM.zip
 xcuserdata/
 
-# Agent instructions, worktrees and local tool state.
-CLAUDE.md
-AGENTS.md
+# Agent worktrees and local tool state. AGENTS.md (and CLAUDE.md, which links to it) are tracked; the original build
+# brief stays local.
 PROMPT.md
 .claude/
 .codex/
