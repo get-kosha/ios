@@ -175,10 +175,12 @@ private struct PaceCard: View {
                 }
                 if let usual = d.usualMonth {
                     HStack {
-                        Text(L.overview_pace_usual_month(amount: money(usual))).kFont(.small).foregroundStyle(c.ink3).money()
+                        figured(L.overview_pace_usual_month(amount: money(usual)), [money(usual)], theme, size: 13)
+                            .kFont(.small).foregroundStyle(c.ink3).money()
                         Spacer()
                         if let p = d.projected {
-                            Text(L.overview_pace_projected(amount: money(p))).kFont(.small).foregroundStyle(c.ink3).money()
+                            figured(L.overview_pace_projected(amount: money(p)), [money(p)], theme, size: 13)
+                                .kFont(.small).foregroundStyle(c.ink3).money()
                         }
                     }
                 }
@@ -427,6 +429,12 @@ private struct NeedsAttention: View {
             (age.map { L.overview_att_value_age(count: $0, name: w.name) } ?? L.overview_att_no_value(name: w.name),
              L.overview_att_understated())
         }
+        // Amounts in the sub line are set as figures, as the design does.
+        let figures: [String] = switch item {
+        case .overdue(let p): [Money.format(p.toWalletId != nil ? abs(p.amount) : p.amount, p.currency, loc)]
+        case .aboveUsual(let cat, let usual): [Money.format(cat.total, d.primary, loc), Money.format(usual, d.primary, loc)]
+        default: []
+        }
         return HStack(spacing: 12) {
             switch item {
             case .overdue(let p): IconTile(categoryIconName(kosha.category(p.categoryId)?.icon))
@@ -435,7 +443,7 @@ private struct NeedsAttention: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).kFont(.body).money()
-                if let sub { Text(sub).kFont(.xs).foregroundStyle(c.ink3).money() }
+                if let sub { figured(sub, figures, theme, size: 12).kFont(.xs).foregroundStyle(c.ink3).money() }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             action(item)
@@ -757,4 +765,18 @@ private struct FirstOverview: View {
         default: ""
         }
     }
+}
+
+/// A sentence with its amounts in the figure font (Geist Mono unless Number font is proportional), as the design sets
+/// "Usual month €2,480" and "€86.20 against €69.50 by day 7". The rest takes the view's font.
+func figured(_ text: String, _ amounts: [String], _ theme: KTheme, size: CGFloat) -> Text {
+    let figure = KFont.figure(size, .regular)
+    var out = Text("")
+    var rest = Substring(text)
+    for a in amounts {
+        guard !a.isEmpty, let r = rest.range(of: a) else { continue }
+        out = out + Text(rest[..<r.lowerBound]) + Text(a).font(figure.font(theme)).tracking(figure.tracking(theme))
+        rest = rest[r.upperBound...]
+    }
+    return out + Text(rest)
 }
