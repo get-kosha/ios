@@ -79,9 +79,25 @@ The design boards are in the Android repo, in `../kosha-android/design/`:
 
 ## Release
 
-Every push to `main` makes a new build: Xcode Cloud archives the app and uploads it to App Store Connect. `ci_scripts/ci_post_clone.sh` installs XcodeGen and generates the project first.
+The [iOS workflow](.github/workflows/ios.yml) runs on Blacksmith's macOS 26 Apple Silicon runners. Pull requests run the release-script checks, `swift test` and the app's simulator tests. Every push to `main` runs the same checks, then archives and uploads the app to App Store Connect for TestFlight. A manual run on `main` uses the same path.
 
-To upload by hand, run `scripts/release.sh`. It archives with automatic signing for team `654ASRW868` and uploads to App Store Connect. The build number is the commit count, and the version is `MARKETING_VERSION` in `project.yml`.
+Before delivery can run, add these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `APPLE_CERTIFICATE_BASE64` | Base64-encoded `.p12` containing the team's Apple Development signing identity and private key |
+| `APPLE_CERTIFICATE_PASSWORD` | Password protecting that `.p12` |
+| `ASC_KEY_ID` | App Store Connect team API key ID |
+| `ASC_ISSUER_ID` | That key's issuer ID |
+| `ASC_PRIVATE_KEY` | Complete contents of the downloaded `.p8`, including its PEM headers and newlines |
+
+The API key needs permission to manage provisioning for `app.getkosha` and `app.getkosha.widgets`, use cloud-managed distribution signing, and upload builds for team `654ASRW868`. CI imports the existing development identity into a temporary keychain; Xcode manages the app and widget profiles and distribution signing. Signing files and the temporary keychain are removed when the release step exits. Secrets are used only for delivery from `main`.
+
+The upload must finish processing in App Store Connect before testers can install it. In **TestFlight → Internal Testing**, add the build to the tester group, or enable that group's automatic distribution for these uploads. This workflow does not submit the app for public App Review or release it on the App Store.
+
+Once this workflow has been merged, disable the old **Default** Xcode Cloud workflow in its General settings. The Cloud setup script remains available if Cloud builds are needed again.
+
+To upload by hand, run `scripts/release.sh` from a Mac signed into Xcode. It archives with automatic signing for team `654ASRW868` and uploads to App Store Connect. The build number is the commit count, and the version is `MARKETING_VERSION` in `project.yml`. CI fetches the full history to keep that number accurate. A rerun of a commit that was already uploaded cannot upload the same build number again; make a new commit for a new build.
 
 For the HTTPS sign-in callback, the server must have `APPLE_TEAM_ID` set, so it serves `/.well-known/apple-app-site-association` with the app under `applinks` and `webcredentials`. getkosha.app already does.
 

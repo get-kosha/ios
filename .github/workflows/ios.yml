@@ -1,0 +1,63 @@
+name: iOS
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build, test and deliver
+    runs-on: blacksmith-6vcpu-macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Generate the project
+        run: |
+          brew install xcodegen
+          xcodebuild -version
+          xcodegen generate
+
+      - name: Check release scripts
+        run: python3 scripts/test-release.py
+
+      - name: Test KoshaKit
+        run: swift test --package-path KoshaKit
+
+      - name: Build and test the app
+        run: >-
+          xcodebuild test -project Kosha.xcodeproj -scheme Kosha
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+          -resultBundlePath build/tests.xcresult
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload to TestFlight
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: scripts/ci-release.sh
+
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ios-test-results
+          path: build/tests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

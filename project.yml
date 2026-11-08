@@ -114,7 +114,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.getkosha.uitests
         GENERATE_INFOPLIST_FILE: YES
 schemes:
-  # The app, and KoshaKit's unit tests on the simulator: what Xcode Cloud runs on every push to main.
+  # The app and KoshaKit's unit tests on the simulator, also run by GitHub Actions.
   Kosha:
     build:
       targets:
