@@ -48,7 +48,7 @@ public struct KoshaRoot: View {
         let _ = { Kosha.requestLanguage = settings.language }()
         content
             .koshaTheme(settings)
-            .preferredColorScheme(preferredScheme(kosha))
+            .preferredColorScheme(scheme)
             .environment(kosha)
             .environment(nav)
             .environment(toasts)
@@ -85,8 +85,17 @@ public struct KoshaRoot: View {
                 }
             }
             .task {
+                #if DEBUG
+                if let server = Tour.server { await Tour.signIn(server, kosha: kosha) }
+                #endif
                 await kosha.refresh()
                 launching = false
+                #if DEBUG
+                if let screen = Tour.screen {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    Tour.open(screen, kosha: kosha, nav: nav)
+                }
+                #endif
                 await kosha.updateWidget(language: L.language)
             }
     }
@@ -100,6 +109,13 @@ public struct KoshaRoot: View {
             uniquingKeysWith: { a, _ in a }
         )
         nav.openAdd(AddRequest(kind: q["kind"].flatMap(EntryKind.init(rawValue:)), scan: q["scan"] == "1"))
+    }
+
+    private var scheme: ColorScheme? {
+        #if DEBUG
+        if let dark = Tour.dark { return dark ? .dark : .light }
+        #endif
+        return preferredScheme(kosha)
     }
 
     @ViewBuilder
