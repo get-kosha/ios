@@ -8,7 +8,7 @@ import Design
 // Android (app/src/debug/res/values/kit.xml); the controls take their strings from the catalog. Sample data only.
 
 private enum Kit {
-    static let title = "Inputs kit"
+    static let title = "Custom inputs kit"
     static let lead = "Kosha draws its own controls, so entry feels the same on iOS and Android and never waits for a system picker."
     static let keypad = "Amount keypad"
     static let keypadLead = "Used everywhere an amount is entered. Digits type straight into the amount, and a fourth column does the maths."
@@ -64,8 +64,13 @@ private let categories = [
     CategoryTile(id: "coffee", icon: "coffee", label: "Coffee"),
     CategoryTile(id: "transit", icon: "tram", label: "Transit"),
     CategoryTile(id: "shopping", icon: "shopping-bag", label: "Shopping"),
-    CategoryTile(id: "home", icon: "house", label: "Home"),
-    CategoryTile(id: "health", icon: "pill", label: "Health"),
+    CategoryTile(id: "social", icon: "martini", label: "Social"),
+    CategoryTile(id: "takeaway", icon: "pizza", label: "Takeaway"),
+    CategoryTile(id: "health", icon: "bandaids", label: "Health"),
+    CategoryTile(id: "utilities", icon: "lightning", label: "Utilities"),
+    CategoryTile(id: "rent", icon: "house", label: "Rent"),
+    CategoryTile(id: "internet", icon: "globe", label: "Internet"),
+    CategoryTile(id: "fun", icon: "popcorn", label: "Entertainment"),
     CategoryTile(id: "travel", icon: "airplane-tilt", label: "Travel"),
     CategoryTile(id: "gifts", icon: "gift", label: "Gifts"),
     CategoryTile(id: "bills", icon: "receipt", label: "Bills"),
@@ -103,6 +108,8 @@ private struct KitBody: View {
     @State private var off = false
     @State private var radio = true
     @State private var tick = true
+    @State private var otherTick = false
+    @ScaledMetric(relativeTo: .body) private var cardWidth: CGFloat = 300
     @State private var step = 1
     @State private var payee = ""
     @State private var focusedSample = "Bonanza Co"
@@ -119,93 +126,124 @@ private struct KitBody: View {
         let c = theme.colors
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(Kit.title).kFont(.page)
+                Text(Kit.title).kFont(.page).accessibilityAddTraits(.isHeader)
                 Text(Kit.lead).kFont(.body).foregroundStyle(c.ink2)
                 switches
-                section(Kit.keypad, Kit.keypadLead, Kit.keypadNotes) {
-                    AmountDisplay(input: input, currency: "eur", kind: .transfer, note: "≈ ₹1,560.90 in HDFC Savings")
-                    AmountKeypad(input: $input)
-                }
-                section(Kit.tiles, Kit.tilesLead) {
-                    AccountPill("N26 Main", color: c.account(0)) { sheet = .account }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: cardWidth), alignment: .top)], spacing: 16) {
+                    section(Kit.keypad, Kit.keypadLead, Kit.keypadNotes) {
+                        Segmented([(EntryKind.expense, L.add_kind_expense()), (.income, L.add_kind_income()),
+                                   (.transfer, L.add_kind_transfer())], selection: $kind)
+                        AmountDisplay(input: input, currency: "eur", kind: kind,
+                                      note: "≈ " + Money.format(156_090, "inr", theme.locale) + " · HDFC Savings")
+                        AmountKeypad(input: $input)
+                    }
+                    section(Kit.tiles, Kit.tilesLead) {
+                        AccountPill("N26 Main", color: c.account(0)) { sheet = .account }
+                            .frame(maxWidth: .infinity)
+                        HStack(spacing: 6) {
+                            FieldTile(L.add_category(), icon: "tag", pick: .empty) { sheet = .category }
+                            FieldTile(L.add_today(), icon: "calendar-blank") { sheet = .date }
+                            FieldTile(L.app_add_repeat(), icon: "repeat", pick: .unset) {}
+                            FieldTile(L.add_note(), icon: "note-pencil", pick: .unset) {}
+                        }
+                        HStack(spacing: 6) {
+                            FieldTile("Dining", icon: "fork-knife", pick: .guess) {}
+                            FieldTile("Coffee", icon: "coffee", pick: .guess, aiGuess: true) {}
+                            FieldTile("Fri 6", icon: "calendar-blank") {}
+                            FieldTile("Monthly", icon: "repeat") {}
+                        }
+                        TransferPills(
+                            from: ("N26 Main", c.account(0)), to: ("HDFC Savings", c.account(2)), toPlaceholder: L.add_account(),
+                            swapLabel: L.app_add_swap(), onFrom: {}, onTo: {}, onSwap: {}
+                        )
                         .frame(maxWidth: .infinity)
-                    HStack(spacing: 6) {
-                        FieldTile(L.add_category(), icon: "tag", pick: .empty) { sheet = .category }
-                        FieldTile(L.add_today(), icon: "calendar-blank") { sheet = .date }
-                        FieldTile(L.app_add_repeat(), icon: "repeat", pick: .unset) {}
-                        FieldTile(L.add_note(), icon: "note-pencil", pick: .unset) {}
                     }
-                    HStack(spacing: 6) {
-                        FieldTile("Dining", icon: "fork-knife", pick: .guess) {}
-                        FieldTile("Coffee", icon: "coffee", pick: .guess, aiGuess: true) {}
-                        FieldTile("Fri 6", icon: "calendar-blank") {}
-                        FieldTile("Monthly", icon: "repeat") {}
+                    section(Kit.date, Kit.dateLead, Kit.dateNotes) {
+                        quickDays
+                        MonthHeader(month: month) { month = month.adding($0) }
+                        MonthGrid(month: month, selected: day, today: Day(2026, 11, 7),
+                                  dots: [Day(2026, 11, 1), Day(2026, 11, 4), Day(2026, 11, 5), Day(2026, 11, 6)]) { day = $0 }
+                        KButton(Kit.openDate, style: .secondary, size: .medium) { sheet = .date }
                     }
-                    TransferPills(
-                        from: ("N26 Main", c.account(0)), to: ("HDFC Savings", c.account(2)), toPlaceholder: L.add_account(),
-                        swapLabel: L.app_add_swap(), onFrom: {}, onTo: {}, onSwap: {}
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                section(Kit.date, Kit.dateLead, Kit.dateNotes) {
-                    HStack(spacing: 8) {
-                        Chip(L.add_today(), on: day == Day(2026, 11, 7)) { day = Day(2026, 11, 7) }
-                        Chip(L.add_yesterday(), on: day == Day(2026, 11, 6)) { day = Day(2026, 11, 6) }
-                        Chip(DayFormat.weekdayDay(Day(2026, 11, 6), theme.locale)) {}
+                    section(Kit.time, Kit.timeLead, Kit.timeNotes) {
+                        TimeWheel(time: $time)
+                        KButton(L.app_time_now(), style: .soft, size: .medium, action: now)
+                        KButton(Kit.openTime, style: .secondary, size: .medium) { sheet = .time }
                     }
-                    MonthHeader(month: month) { month = month.adding($0) }
-                    MonthGrid(month: month, selected: day, today: Day(2026, 11, 7),
-                              dots: [Day(2026, 11, 1), Day(2026, 11, 4), Day(2026, 11, 5), Day(2026, 11, 6)]) { day = $0 }
-                }
-                section(Kit.time, Kit.timeLead, Kit.timeNotes) {
-                    TimeWheel(time: $time)
-                    KButton(L.app_time_now(), style: .soft, size: .medium) { time = "14:30" }
-                }
-                section(Kit.account, Kit.accountLead, Kit.accountNotes) {
-                    AccountList(accountChoices(c), selected: account) { account = $0 }
-                }
-                section(Kit.category, Kit.categoryLead, Kit.categoryNotes) {
-                    CategoryGrid(Array(categories.prefix(5)), picked: category, guess: "coffee", aiGuess: true) {
-                        category = $0.id
+                    section(Kit.account, Kit.accountLead, Kit.accountNotes) {
+                        AccountList(accountChoices(c), selected: account) { account = $0 }
                     }
-                }
-                section(Kit.controls, Kit.controlsLead) {
-                    Segmented([(EntryKind.expense, L.add_kind_expense()), (.income, L.add_kind_income()),
-                               (.transfer, L.add_kind_transfer())], selection: $kind)
-                    HStack(spacing: 12) {
-                        KSwitch("On", isOn: $on)
-                        KSwitch("Off", isOn: $off)
-                        Button { radio.toggle() } label: { Radio(radio) }.frame(width: 44, height: 44)
-                        Radio(false)
-                        Button { tick.toggle() } label: { Tick(tick) }.frame(width: 44, height: 44)
-                        Tick(false)
+                    section(Kit.category, Kit.categoryLead, Kit.categoryNotes) {
+                        CategoryGrid(Array(categories.prefix(5)), picked: category, guess: "coffee", aiGuess: true) {
+                            category = $0.id
+                        }
+                        KButton(Kit.openCategory, style: .secondary, size: .medium) { sheet = .category }
                     }
-                    HStack(spacing: 8) {
-                        Chip("N26 Main") { AccountDot(c.account(0)) }
-                        Chip(L.add_today(), on: true) { PhIcon("calendar-blank", size: 18) }
+                    section(Kit.controls, Kit.controlsLead) {
+                        Segmented([(EntryKind.expense, L.add_kind_expense()), (.income, L.add_kind_income()),
+                                   (.transfer, L.add_kind_transfer())], selection: $kind)
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 46))], spacing: 8) {
+                            KSwitch("Switch on", isOn: $on)
+                            KSwitch("Switch off", isOn: $off)
+                            Button { radio = true } label: { Radio(radio).frame(width: 44, height: 44).contentShape(Rectangle()) }
+                                .accessibilityLabel("Radio 1").accessibilityAddTraits(radio ? .isSelected : [])
+                            Button { radio = false } label: { Radio(!radio).frame(width: 44, height: 44).contentShape(Rectangle()) }
+                                .accessibilityLabel("Radio 2").accessibilityAddTraits(!radio ? .isSelected : [])
+                            Button { tick.toggle() } label: { Tick(tick).frame(width: 44, height: 44).contentShape(Rectangle()) }
+                                .accessibilityLabel("Tick 1").accessibilityAddTraits(tick ? .isSelected : [])
+                            Button { otherTick.toggle() } label: { Tick(otherTick).frame(width: 44, height: 44).contentShape(Rectangle()) }
+                                .accessibilityLabel("Tick 2").accessibilityAddTraits(otherTick ? .isSelected : [])
+                        }
+                        .buttonStyle(PressStyle())
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 8) {
+                                Chip("N26 Main", leading: { AccountDot(c.account(0)) })
+                                Chip(L.add_today(), on: true, leading: { PhIcon("calendar-blank", size: 18) })
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                Chip("N26 Main", leading: { AccountDot(c.account(0)) })
+                                Chip(L.add_today(), on: true, leading: { PhIcon("calendar-blank", size: 18) })
+                            }
+                        }
+                        Chip("#lisbon", soft: true, leading: { PhIcon("tag", size: 18) })
+                        KStepper("Every", value: $step)
+                        KButton("Primary") {}
+                        KButton("Secondary", style: .secondary, size: .medium) {}
+                        KButton(L.common_delete(), style: .danger, size: .small) {}
+                        KButton("Primary") {}.disabled(true)
+                        HStack { Pill("fixed"); Pill("−8%", color: c.pos); Pill("+24%", color: c.warn) }
                     }
-                    Chip("#lisbon", soft: true) { PhIcon("tag", size: 18) }
-                    KStepper("Every", value: $step)
-                    HStack(spacing: 8) {
-                        KButton("Primary", size: .small) {}
-                        KButton("Secondary", style: .secondary, size: .small) {}
+                    section(Kit.fields, Kit.fieldsLead, Kit.fieldsNotes) {
+                        KField(L.add_payee(), text: $payee)
+                        HStack(spacing: 0) {
+                            Text(focusedSample).kFont(.sans(16, .regular))
+                            Capsule().fill(c.selection).frame(width: 2, height: 20).padding(.leading, 2)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 12).frame(minHeight: 48)
+                        .background(c.surface, in: .rect(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(c.ink, lineWidth: 2))
+                        .accessibilityElement(children: .combine)
+                        KField(L.app_own_label(), text: $server, error: Kit.serverError)
+                        HStack(spacing: 3) {
+                            ForEach(Array("qwertyuiop"), id: \.self) { key in
+                                Text(String(key)).kFont(.xs).frame(maxWidth: .infinity, minHeight: 28)
+                                    .background(c.surface, in: .rect(cornerRadius: 6))
+                            }
+                        }
+                        .padding(6).background(c.sel, in: .rect(cornerRadius: 10)).accessibilityHidden(true)
                     }
-                    KButton(L.common_delete(), style: .danger, size: .small) {}
-                    HStack { Pill("fixed"); Pill("−8%", color: c.pos); Pill("+24%", color: c.warn) }
-                }
-                section(Kit.fields, Kit.fieldsLead, Kit.fieldsNotes) {
-                    KField(L.add_payee(), text: $payee)
-                    KField(L.add_payee(), text: $focusedSample)
-                    KField(L.app_own_label(), text: $server, error: Kit.serverError)
-                }
-                section(Kit.sheets, Kit.sheetsLead, Kit.sheetsNotes) {
-                    KButton(Kit.openAccount, style: .secondary, size: .medium) { sheet = .account }
-                    KButton(Kit.openList, style: .secondary, size: .medium) { sheet = .list }
-                    KButton(Kit.openDate, style: .secondary, size: .medium) { sheet = .date }
-                    KButton(Kit.openTime, style: .secondary, size: .medium) { sheet = .time }
-                    KButton(Kit.openCategory, style: .secondary, size: .medium) { sheet = .category }
-                    KButton(Kit.showToast, style: .secondary, size: .medium) {
-                        toasts.show(Kit.toast) { toasts.show(L.common_undo()) }
+                    section(Kit.sheets, Kit.sheetsLead, Kit.sheetsNotes) {
+                        sheetSample
+                        ToastView(toast: Toasts.Toast(message: Kit.toast, undo: {}), dismiss: {})
+                        KButton(Kit.openAccount, style: .secondary, size: .medium) { sheet = .account }
+                        KButton(Kit.openList, style: .secondary, size: .medium) { sheet = .list }
+                        KButton(Kit.openDate, style: .secondary, size: .medium) { sheet = .date }
+                        KButton(Kit.openTime, style: .secondary, size: .medium) { sheet = .time }
+                        KButton(Kit.openCategory, style: .secondary, size: .medium) { sheet = .category }
+                        KButton(Kit.showToast, style: .secondary, size: .medium) {
+                            toasts.show(Kit.toast) { toasts.show(L.common_undo()) }
+                        }
                     }
                 }
             }
@@ -216,12 +254,52 @@ private struct KitBody: View {
         .kSheet(item: $sheet, scrolls: false) { s in sheetContent(s) }
     }
 
+    private func now() {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        time = formatter.string(from: Date())
+    }
+
+    private var quickDays: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], alignment: .leading, spacing: 8) {
+            ForEach([Day(2026, 11, 7), Day(2026, 11, 6), Day(2026, 11, 5), Day(2026, 11, 1)], id: \.self) { date in
+                Chip(date.day == 1 ? L.add_start_of_month() : DayFormat.label(date, today: Day(2026, 11, 7), theme.locale),
+                     on: day == date, action: { day = date; month = date.monthOf })
+            }
+        }
+    }
+
+    private var sheetSample: some View {
+        let c = theme.colors
+        return ZStack(alignment: .bottom) {
+            c.bg
+            c.scrim
+            VStack(spacing: 8) {
+                Capsule().fill(c.sel).frame(width: 36, height: 5).padding(.top, 8)
+                SheetHeader(L.add_account()) {}
+                RoundedRectangle(cornerRadius: 8).fill(c.soft).frame(height: 30)
+                RoundedRectangle(cornerRadius: 8).fill(c.soft).frame(height: 30)
+            }
+            .padding(.horizontal, 16).padding(.bottom, 16)
+            .background(c.surface, in: .rect(topLeadingRadius: 24, topTrailingRadius: 24))
+        }
+        .frame(height: 210)
+        .clipShape(.rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(c.line))
+        .accessibilityHidden(true)
+    }
+
     private var switches: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Segmented([(false, "Light"), (true, "Dark")], selection: $dark, small: true)
-            Segmented([(false, "More colour"), (true, "Neutral")], selection: $settings.neutral, small: true)
+            Segmented([(false, "Light"), (true, "Dark")], selection: $dark)
+            Segmented([(false, "More colour"), (true, "Neutral")], selection: $settings.neutral)
             Segmented(Accent.allCases.map { ($0, $0.rawValue.capitalized) }, selection: $settings.accent, small: true)
-            Segmented([(Figures.mono, "Mono"), (.proportional, "Proportional")], selection: $settings.figures, small: true)
+            Segmented([(Figures.mono, "Mono"), (.proportional, "Proportional")], selection: $settings.figures)
+            KSwitch("Hide amounts", isOn: $settings.hideAmounts)
+            Text(Money.format(131_240, "eur", theme.locale)).kFont(.hero).money()
+            Segmented([(Density.comfortable, "Comfortable"), (.compact, "Compact")], selection: $settings.density, small: true)
+            Segmented([(Motion.on, "On"), (.reduced, "Reduced"), (.off, "Off")], selection: $settings.motion, small: true)
             Segmented(["en", "de", "hi", "ja"].map { ($0, $0) }, selection: $settings.language, small: true)
         }
         .onChange(of: settings.language) { _, l in L.use(language: l) }
@@ -230,8 +308,8 @@ private struct KitBody: View {
     private func accountChoices(_ c: KColors) -> [AccountChoice] {
         accounts.map { a in
             AccountChoice(
-                id: a.id, name: a.name, color: c.account(a.colour), detail: a.currency.uppercased(),
-                balance: Money.format(a.balance, a.currency, theme.locale), group: L.accounts_group_bank_cash()
+                id: a.id, name: a.name, color: c.account(a.colour), detail: "",
+                balance: Money.format(a.balance, a.currency, theme.locale), group: ""
             )
         }
     }
@@ -248,13 +326,14 @@ private struct KitBody: View {
                 }
             }
         case .list:
-            ListPicker(L.common_language(), choices: [
+            ListPicker(L.accounts_currency(), choices: [
                 Choice(id: "eur", title: "Euro", detail: "EUR"), Choice(id: "inr", title: "Indian rupee", detail: "INR"),
                 Choice(id: "usd", title: "US dollar", detail: "USD"),
             ], selected: currency, onPick: { currency = $0; sheet = nil }, onClose: { sheet = nil })
         case .date:
             VStack(alignment: .leading, spacing: 12) {
                 SheetHeader(L.add_date()) { sheet = nil }
+                quickDays
                 MonthHeader(month: month) { month = month.adding($0) }
                 MonthGrid(month: month, selected: day, today: Day(2026, 11, 7)) { day = $0; sheet = nil }
             }
@@ -262,6 +341,7 @@ private struct KitBody: View {
             VStack(spacing: 12) {
                 SheetHeader(L.add_time()) { sheet = nil }
                 TimeWheel(time: $time)
+                KButton(L.app_time_now(), style: .soft, action: now)
                 KButton(L.common_done()) { sheet = nil }
             }
         case .category:
@@ -277,8 +357,8 @@ private struct KitBody: View {
         _ title: String, _ lead: String, _ notes: String? = nil, @ViewBuilder content: () -> Content
     ) -> some View {
         Card {
-            Text(title).kFont(.sans(17, .semibold))
-            Text(lead).kFont(.small).foregroundStyle(theme.colors.ink2)
+            Text(title).kFont(.sans(17, .medium)).accessibilityAddTraits(.isHeader)
+            Text(lead).kFont(.body).foregroundStyle(theme.colors.ink2)
             content()
             if let notes { Text(notes).kFont(.small).foregroundStyle(theme.colors.ink2) }
         }

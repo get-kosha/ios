@@ -19,7 +19,7 @@ public enum Weight: Sendable { case regular, medium, semibold }
 
 /// Kosha's type scale (k.css). Figures (`num`, `amount`, `key`, `expr`) follow Settings › Appearance › Number font.
 /// Every style scales with Dynamic Type, relative to the closest system style.
-public enum KFont: Sendable {
+public enum KFont: Sendable, Equatable {
     /// Big money: 40/600, tabular; cents in ink3.
     case hero
     case page, title, sheetTitle, head, body, small, xs
@@ -79,18 +79,28 @@ public enum KFont: Sendable {
 
     public func tracking(_ theme: KTheme) -> CGFloat {
         // Devanagari breaks with tight tracking.
-        theme.locale.language.languageCode?.identifier == "hi" ? 0 : spec.size * spec.tracking
+        guard theme.locale.language.languageCode?.identifier != "hi" else { return 0 }
+        let em: CGFloat
+        switch self {
+        case .num, .key, .figure: em = theme.figures == .proportional ? -0.01 : -0.02
+        default: em = spec.tracking
+        }
+        return spec.size * em
     }
-
-    static func == (a: KFont, b: KFont) -> Bool { "\(a)" == "\(b)" }
 }
 
 private struct KStyle: ViewModifier {
     let font: KFont
     @Environment(\.kosha) private var theme
+    @ScaledMetric private var size: CGFloat
+
+    init(font: KFont) {
+        self.font = font
+        _size = ScaledMetric(wrappedValue: font.spec.size, relativeTo: font.spec.style)
+    }
 
     func body(content: Content) -> some View {
-        let text = content.font(font.font(theme)).tracking(font.tracking(theme))
+        let text = content.font(font.font(theme)).tracking(font.tracking(theme) * size / font.spec.size)
         if case .caption = font { text.textCase(.uppercase) } else { text }
     }
 }

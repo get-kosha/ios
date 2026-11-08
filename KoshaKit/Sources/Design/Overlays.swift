@@ -16,6 +16,11 @@ public struct SheetHeader<Trailing: View>: View {
         self.trailing = trailing()
     }
 
+    /// Keeps a trailing view closure distinct from the close action.
+    public init(_ title: String, @ViewBuilder trailing: () -> Trailing) {
+        self.init(title, onClose: nil, trailing: trailing)
+    }
+
     public var body: some View {
         HStack(spacing: 8) {
             Text(title).kFont(.sheetTitle).accessibilityAddTraits(.isHeader)
@@ -39,7 +44,6 @@ private struct HeightKey: PreferenceKey {
 /// down to close, the scrim behind. The system sheet does the dragging; Kosha draws the rest.
 private struct KoshaSheet<Body: View>: View {
     let content: Body
-    let scrolls: Bool
     @State private var height: CGFloat = 300
     @Environment(\.kosha) private var theme
 
@@ -48,17 +52,19 @@ private struct KoshaSheet<Body: View>: View {
         VStack(spacing: 0) {
             Capsule().fill(c.sel).frame(width: 36, height: 5).padding(.top, 8).padding(.bottom, 10)
                 .accessibilityHidden(true)
-            if scrolls {
-                ScrollView { content.padding(.horizontal, 16).padding(.bottom, 34) }
-                    .scrollBounceBehavior(.basedOnSize)
-            } else {
-                content.padding(.horizontal, 16).padding(.bottom, 34)
+            ScrollView {
+                content
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 34)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .background(GeometryReader { p in
+                        Color.clear.preference(key: HeightKey.self, value: p.size.height + 23)
+                    })
             }
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .background(GeometryReader { p in Color.clear.preference(key: HeightKey.self, value: p.size.height) })
-        .onPreferenceChange(HeightKey.self) { h in if h > 0 && !scrolls { height = h } }
-        .frame(maxHeight: scrolls ? .infinity : nil, alignment: .top)
-        .presentationDetents(scrolls ? [.large] : [.height(height)])
+        .onPreferenceChange(HeightKey.self) { h in if h > 0 { height = h } }
+        .presentationDetents([.height(height)])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(24)
         .presentationBackground(c.surface)
@@ -66,26 +72,19 @@ private struct KoshaSheet<Body: View>: View {
 }
 
 extension View {
-    /// Shows `content` in a Kosha sheet. `scrolls` gives tall content (lists, pickers) the full height and a scroll view.
+    /// Shows `content` in a Kosha sheet. All sheets scroll when taller than the screen; `scrolls` remains for callers.
     public func kSheet<Content: View>(
         isPresented: Binding<Bool>, scrolls: Bool = false, @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        sheet(isPresented: isPresented) { KoshaSheetHost(scrolls: scrolls, content: content) }
+        sheet(isPresented: isPresented) { KoshaSheet(content: content()) }
     }
 
     /// Shows a Kosha sheet for an item.
     public func kSheet<Item: Identifiable, Content: View>(
         item: Binding<Item?>, scrolls: Bool = false, @ViewBuilder content: @escaping (Item) -> Content
     ) -> some View {
-        sheet(item: item) { item in KoshaSheetHost(scrolls: scrolls) { content(item) } }
+        sheet(item: item) { item in KoshaSheet(content: content(item)) }
     }
-}
-
-/// Carries the theme into the sheet, which the system presents outside the screen's environment on some paths.
-private struct KoshaSheetHost<Content: View>: View {
-    let scrolls: Bool
-    let content: () -> Content
-    var body: some View { KoshaSheet(content: content(), scrolls: scrolls) }
 }
 
 // MARK: Toast
@@ -98,6 +97,12 @@ public final class Toasts {
         public let message: String
         public let undo: (@MainActor () -> Void)?
         public let warning: Bool
+
+        public init(message: String, undo: (@MainActor () -> Void)? = nil, warning: Bool = false) {
+            self.message = message
+            self.undo = undo
+            self.warning = warning
+        }
     }
 
     public private(set) var current: Toast?
@@ -131,7 +136,7 @@ public struct ToastHost: ViewModifier {
                 ToastView(toast: t) { toasts.dismiss() }
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(theme.motion == .on ? .move(edge: .top).combined(with: .opacity) : .opacity)
                     .id(t.id)
             }
         }
@@ -160,12 +165,13 @@ public struct ToastView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let undo = toast.undo {
                 Button {
-                    undo()
                     dismiss()
+                    undo()
                 } label: {
                     Text(L.common_undo()).kFont(.sans(14, .medium)).foregroundStyle(c.onInk)
                         .padding(.horizontal, 12).frame(minHeight: 36)
                         .background(c.onInk.opacity(0.14), in: .rect(cornerRadius: 9))
+                        .frame(minHeight: 44)
                 }
                 .buttonStyle(PressStyle())
             }
@@ -176,8 +182,7 @@ public struct ToastView: View {
         .frame(minHeight: 52)
         .background(c.ink, in: .rect(cornerRadius: 14))
         .shadow(color: .black.opacity(0.3), radius: 15, y: 10)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isStaticText)
+        .accessibilityElement(children: .contain)
         .onAppear { AccessibilityNotification.Announcement(toast.message).post() }
     }
 }
@@ -196,6 +201,8 @@ private struct MoneyBlur: ViewModifier {
         if theme.hideAmounts {
             content
                 .blur(radius: peek ? 0 : 7)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L.shell_hide_amounts())
                 .onLongPressGesture(minimumDuration: 0.2, perform: {}, onPressingChanged: { peek = $0 })
         } else {
             content
@@ -205,7 +212,7 @@ private struct MoneyBlur: ViewModifier {
 
 extension View {
     /// Blurs a money figure when Hide amounts is on; touch and hold to peek.
-    public func money() -> some View { modifier(MoneyBlur()) }
+    public func money() -> some View { minimumScaleFactor(0.1).modifier(MoneyBlur()) }
 }
 
 // MARK: Pickers
@@ -250,11 +257,12 @@ public struct ListPicker<ID: Hashable & Sendable>: View {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         let shown = q.isEmpty ? choices : choices.filter {
             $0.title.lowercased().contains(q) || ($0.detail?.lowercased().contains(q) ?? false)
+                || String(describing: $0.id).lowercased().contains(q)
         }
         VStack(alignment: .leading, spacing: 8) {
             SheetHeader(title, onClose: onClose)
             KField(L.common_search(), text: $query, icon: "magnifying-glass")
-            LazyVStack(spacing: 0) {
+            VStack(spacing: 0) {
                 ForEach(shown) { choice in
                     ListRow(selected: false, action: { onPick(choice.id) }) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -292,7 +300,7 @@ public struct AccountChoice: Identifiable, Sendable {
 }
 
 /// The account picker's list, grouped by type (Bank & cash, Credit cards, Investments) in the order given, each group
-/// under its caption. The picked one sits on the selection ground with a check (AccountSheet).
+/// under its caption. A radio marks the picked account, as on Android.
 public struct AccountList: View {
     let accounts: [AccountChoice]
     let selected: String?
@@ -317,20 +325,43 @@ public struct AccountList: View {
                         let a = rows[i]
                         let on = a.id == selected
                         if i > 0 { Hairline() }
-                        ListRow(selected: on, action: { onPick(a.id) }) {
-                            AccountDot(a.color, size: 10)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(a.name).kFont(.body)
-                                Text(a.detail).kFont(.small).foregroundStyle(c.ink3).money()
+                        ListRow(action: { onPick(a.id) }) {
+                            AccountDot(a.color, size: 12)
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: 12) {
+                                    accountName(a)
+                                    Spacer(minLength: 0)
+                                    balance(a).fixedSize()
+                                }
+                                VStack(alignment: .leading, spacing: 6) {
+                                    accountName(a)
+                                    balance(a).fixedSize(horizontal: false, vertical: true)
+                                }
                             }
-                            Spacer(minLength: 8)
-                            if !a.balance.isEmpty { Text(a.balance).kFont(.num).foregroundStyle(c.ink2).money() }
-                            if on { PhIcon("check", size: 20, color: c.selection) }
+                            .frame(minHeight: theme.dims.row - 4)
+                            Radio(on)
                         }
                         .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
             }
+        }
+    }
+
+    private func accountName(_ account: AccountChoice) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(account.name).kFont(.body).fixedSize(horizontal: false, vertical: true)
+            if !account.detail.isEmpty {
+                Text(account.detail).kFont(.small).foregroundStyle(theme.colors.ink3).money()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private func balance(_ account: AccountChoice) -> some View {
+        if !account.balance.isEmpty {
+            Text(account.balance).kFont(.num).foregroundStyle(theme.colors.ink2).money()
         }
     }
 }

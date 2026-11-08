@@ -86,7 +86,7 @@ public struct AccountDot: View {
     }
     public var body: some View {
         if theme.colors.accountColours {
-            RoundedRectangle(cornerRadius: size * 3 / 8).fill(color).frame(width: size, height: size)
+            RoundedRectangle(cornerRadius: size == 10 ? 3 : size * 3 / 8).fill(color).frame(width: size, height: size)
         }
     }
 }
@@ -108,6 +108,8 @@ public struct IconButton: View {
         self.action = action
     }
 
+    @Environment(\.isEnabled) private var enabled
+
     public var body: some View {
         Button(action: action) {
             PhIcon(icon, size: 22, color: color ?? theme.colors.ink2)
@@ -118,6 +120,7 @@ public struct IconButton: View {
         }
         .buttonStyle(PressStyle())
         .accessibilityLabel(label)
+        .opacity(enabled ? 1 : 0.4)
     }
 }
 
@@ -163,15 +166,17 @@ public struct KButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let icon { PhIcon(icon, size: 18, color: ink) }
-                Text(title).kFont(.sans(size.font, .medium)).foregroundStyle(ink).lineLimit(2)
+                Text(title).kFont(.sans(size.font, .medium)).foregroundStyle(ink).fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, size == .small ? 14 : 20)
+            .padding(.vertical, 8)
             .frame(maxWidth: size == .small ? nil : .infinity, minHeight: size.height)
             .background(ground, in: .rect(cornerRadius: size.radius))
             .overlay {
                 if style == .secondary { RoundedRectangle(cornerRadius: size.radius).strokeBorder(c.line) }
             }
+            .frame(minHeight: 44)
             .contentShape(.rect(cornerRadius: size.radius))
         }
         .buttonStyle(PressStyle())
@@ -189,7 +194,7 @@ public struct Pill: View {
         self.color = color
     }
     public var body: some View {
-        Text(text).kFont(.xs).foregroundStyle(color ?? theme.colors.ink2).lineLimit(1)
+        Text(text).kFont(.xs).foregroundStyle(color ?? theme.colors.ink2).fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 8)
             .frame(minHeight: 22)
             .background(theme.colors.soft, in: .capsule)
@@ -219,11 +224,19 @@ public struct Chip<Leading: View>: View {
         self.leading = leading()
     }
 
+    /// Keeps an icon closure distinct from the optional tap action.
+    public init(
+        _ text: String, on: Bool = false, soft: Bool = false, small: Bool = false,
+        @ViewBuilder leading: () -> Leading
+    ) {
+        self.init(text, on: on, soft: soft, small: small, action: nil, leading: leading)
+    }
+
     public var body: some View {
         let c = theme.colors
         let chip = HStack(spacing: 8) {
             leading
-            Text(text).kFont(small ? .small : .body).lineLimit(1)
+            Text(text).kFont(small ? .small : .body).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, small ? 12 : 14)
         .frame(minHeight: small ? 32 : 40)
@@ -232,7 +245,7 @@ public struct Chip<Leading: View>: View {
             if on { Capsule().strokeBorder(c.ink, lineWidth: 1.5) } else if !soft { Capsule().strokeBorder(c.line) }
         }
         if let action {
-            Button(action: action) { chip.contentShape(.capsule) }.buttonStyle(PressStyle())
+            Button(action: action) { chip.frame(minHeight: 44).contentShape(.capsule) }.buttonStyle(PressStyle())
                 .accessibilityAddTraits(on ? .isSelected : [])
         } else {
             chip
@@ -265,8 +278,9 @@ public struct Segmented<T: Hashable>: View {
                     Text(label)
                         .kFont(small ? (on ? .sans(13, .medium) : .small) : (on ? .head : .body))
                         .foregroundStyle(on ? c.ink : c.ink3)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 4)
                         .frame(maxWidth: .infinity, minHeight: small ? 32 : 38)
                         .background {
                             if on {
@@ -314,9 +328,8 @@ public struct KSwitch: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
+        .accessibilityRepresentation { Toggle(label, isOn: $isOn).toggleStyle(.switch) }
         .sensoryFeedback(.selection, trigger: isOn)
-        .accessibilityLabel(label)
-        .accessibilityAddTraits(.isToggle)
     }
 }
 
@@ -363,21 +376,23 @@ public struct KStepper: View {
 
     public var body: some View {
         HStack(spacing: 0) {
-            IconButton("minus", label: L.app_stepper_less()) { value = max(range.lowerBound, value - 1) }
+            IconButton("minus", label: L.app_stepper_less()) { if value > range.lowerBound { value -= 1 } }
                 .disabled(value <= range.lowerBound)
             Text("\(value)").kFont(.num).frame(minWidth: 28)
-            IconButton("plus", label: L.app_stepper_more()) { value = min(range.upperBound, value + 1) }
+            IconButton("plus", label: L.app_stepper_more()) { if value < range.upperBound { value += 1 } }
                 .disabled(value >= range.upperBound)
         }
         .padding(.horizontal, 2)
+        .frame(minHeight: 48)
+        .background(theme.colors.surface, in: .rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.colors.line))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue("\(value)")
         .accessibilityAdjustableAction { dir in
             switch dir {
-            case .increment: value = min(range.upperBound, value + 1)
-            case .decrement: value = max(range.lowerBound, value - 1)
+            case .increment: if value < range.upperBound { value += 1 }
+            case .decrement: if value > range.lowerBound { value -= 1 }
             @unknown default: break
             }
         }
@@ -393,6 +408,7 @@ public struct KField: View {
     let error: String?
     let secure: Bool
     @FocusState private var focused: Bool
+    @ScaledMetric(relativeTo: .body) private var height: CGFloat = 48
     @Environment(\.kosha) private var theme
 
     public init(_ placeholder: String, text: Binding<String>, icon: String? = nil, error: String? = nil, secure: Bool = false) {
@@ -415,12 +431,16 @@ public struct KField: View {
                         TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(c.ink3))
                     }
                 }
+                .textFieldStyle(.plain)
                 .kFont(.sans(16, .regular))
+                .accessibilityLabel(placeholder)
+                .accessibilityHint(error ?? "")
                 .tint(c.selection)
                 .focused($focused)
             }
             .padding(.horizontal, 14)
-            .frame(minHeight: 48)
+            .padding(.vertical, 12)
+            .frame(minHeight: height)
             .background(c.surface, in: .rect(cornerRadius: 14))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)

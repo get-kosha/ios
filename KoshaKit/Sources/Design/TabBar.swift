@@ -22,6 +22,8 @@ public struct TabBar<T: Hashable>: View {
     let addLabel: String
     let onAdd: () -> Void
     @Environment(\.kosha) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var bottomInset: CGFloat = 0
 
     public init(_ tabs: [Tab<T>], selected: Binding<T>, addLabel: String, onAdd: @escaping () -> Void) {
         self.tabs = tabs
@@ -43,8 +45,9 @@ public struct TabBar<T: Hashable>: View {
                         Text(tab.label)
                             .font(.custom(on ? "Geist-Medium" : "Geist-Regular", size: 11, relativeTo: .caption2))
                             .foregroundStyle(on ? c.ink : c.ink3)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .lineLimit(typeSize > .large ? nil : 1)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .contentShape(Rectangle())
@@ -55,6 +58,12 @@ public struct TabBar<T: Hashable>: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 6)
+        .padding(.bottom, 30 - bottomInset)
+        .background(GeometryReader { proxy in
+            Color.clear
+                .onAppear { bottomInset = proxy.safeAreaInsets.bottom }
+                .onChange(of: proxy.safeAreaInsets.bottom) { _, inset in bottomInset = inset }
+        })
         .background {
             ZStack(alignment: .top) {
                 Rectangle().fill(.ultraThinMaterial)
