@@ -206,45 +206,6 @@ struct AmountField: View {
     }
 }
 
-/// Chips that wrap onto as many lines as they need.
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 6
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = arrange(proposal.width ?? .infinity, subviews)
-        return CGSize(width: proposal.width ?? rows.map(\.width).max() ?? 0,
-                      height: rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(0, rows.count - 1)))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var y = bounds.minY
-        for row in arrange(bounds.width, subviews) {
-            var x = bounds.minX
-            for i in row.items {
-                let size = subviews[i].sizeThatFits(.unspecified)
-                subviews[i].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-                x += size.width + spacing
-            }
-            y += row.height + spacing
-        }
-    }
-
-    private func arrange(_ width: CGFloat, _ subviews: Subviews) -> [(items: [Int], width: CGFloat, height: CGFloat)] {
-        var rows: [(items: [Int], width: CGFloat, height: CGFloat)] = []
-        for (i, v) in subviews.enumerated() {
-            let size = v.sizeThatFits(.unspecified)
-            if let last = rows.last, last.width + spacing + size.width <= width {
-                rows[rows.count - 1].items.append(i)
-                rows[rows.count - 1].width += spacing + size.width
-                rows[rows.count - 1].height = max(last.height, size.height)
-            } else {
-                rows.append(([i], size.width, size.height))
-            }
-        }
-        return rows
-    }
-}
-
 /// "Delete this transaction?" with its payee, amount and day; "Its receipt is deleted with it." when it has files. A
 /// transfer is deleted from both accounts. `onDone` says whether it was deleted.
 struct DeleteConfirm: View {
