@@ -214,7 +214,7 @@ struct SettingsList: View {
             Text(L.settings_no_match(query: query.trimmingCharacters(in: .whitespaces)))
                 .foregroundStyle(theme.colors.ink3).frame(maxWidth: .infinity).padding(.vertical, 24)
         } else {
-            Hint(L.settings_results(count: hits.count))
+            SettingsHint(L.settings_results(count: hits.count))
             Rows {
                 ForEach(hits.indices, id: \.self) { i in
                     if i > 0 { Hairline() }

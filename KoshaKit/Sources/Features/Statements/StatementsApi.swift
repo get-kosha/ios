@@ -7,8 +7,8 @@ import Store
 // app-api.server.ts in the web repo), with only the fields these screens read. Rows keep the web's snake_case. Ported
 // from the Android app's feature/statements Api.kt.
 
-/// A CSV's columns (statement.ts Layout). Nullable columns are sent as null, never left out: the server needs them.
-struct Layout: Codable, Sendable, Hashable {
+/// A CSV's columns (statement.ts StatementLayout). Nullable columns are sent as null, never left out: the server needs them.
+struct StatementLayout: Codable, Sendable, Hashable {
     var header: Int
     var date: Int
     var dateFormat: DateFormatKind
@@ -36,7 +36,7 @@ struct Layout: Codable, Sendable, Hashable {
 /// A CSV layout remembered by its header, for /import/lines.
 struct LayoutMemory: Encodable, Sendable {
     let signature: String
-    let layout: Layout
+    let layout: StatementLayout
 }
 
 // MARK: Reconcile
@@ -154,7 +154,7 @@ struct ReadBody: Encodable, Sendable {
     let content: String
     let format: String?
     let card: Bool
-    let layout: Layout?
+    let layout: StatementLayout?
     let walletId: String?
 }
 
@@ -166,7 +166,7 @@ struct Read: Codable, Sendable {
     // CSV
     @D var rows: [[String]]
     var signature: String?
-    var layout: Layout?
+    var layout: StatementLayout?
     var confident: Bool?
     var accountHint: String?
     // OFX and PDF
@@ -296,7 +296,7 @@ struct NewAccount: Encodable, Sendable {
     let creditLimit: Int64?
 }
 
-struct Created: Codable, Sendable { var id: String }
+struct StatementCreated: Codable, Sendable { var id: String }
 
 /// list_recurring with includeSuggestions: payees paid on a steady rhythm that aren't set up yet.
 struct RecurringSuggestions: Codable, Sendable {
@@ -347,7 +347,7 @@ public final class ImportInbox {
 extension KoshaAPI {
     /// Reads a file on the server (POST /api/app/import/read). A `layout` re-reads a CSV with the columns as set.
     /// `walletId` names the account when it exists already (Reconcile); Import's accounts may not exist yet.
-    func read(_ file: Picked, card: Bool, layout: Layout? = nil, walletId: String? = nil) async throws -> Read {
+    func read(_ file: Picked, card: Bool, layout: StatementLayout? = nil, walletId: String? = nil) async throws -> Read {
         try await post("/api/app/import/read", ReadBody(
             name: file.name, content: file.content, format: file.pdf ? "pdf" : nil, card: card, layout: layout,
             walletId: walletId
@@ -356,7 +356,7 @@ extension KoshaAPI {
 
     /// A CSV layout with the columns the AI model worked out (POST /api/app/import/layout), for one Kosha couldn't read
     /// alone, with its date format worked out from that column. Nil when the model couldn't tell.
-    func aiLayout(_ read: Read) async -> Layout? {
+    func aiLayout(_ read: Read) async -> StatementLayout? {
         guard var base = read.layout else { return nil }
         let rows = read.rows.prefix(12).map { Array($0.prefix(60)) }
         guard let roles: Roles = try? await post("/api/app/import/layout", RowsBody(rows: Array(rows))) else { return nil }

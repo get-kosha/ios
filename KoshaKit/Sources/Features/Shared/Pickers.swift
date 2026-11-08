@@ -152,6 +152,8 @@ public struct CategorySheet: View {
             }
             KButton(L.settings_cat_new(), style: .secondary, size: .medium, icon: "plus") {
                 close()
+                // From Add, the tab's stack sits behind the cover: close Add first so the new page shows.
+                nav.add = nil
                 nav.push(.settings(page: "category"))
             }
         }

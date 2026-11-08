@@ -5,7 +5,7 @@ import Model
 // before any account exists, so it can't come from the server's reports yet.
 
 /// An account being set up on Welcome, with the two figures people know (minor units, ×100), nil when not typed.
-struct NewAccount: Identifiable, Equatable, Sendable {
+struct WelcomeNewAccount: Identifiable, Equatable, Sendable {
     let id: UUID
     var name: String
     var type: AccountType
@@ -46,7 +46,7 @@ func openingFigures(_ type: AccountType, amount: Int64?, extra: Int64?) -> Openi
     }
 }
 
-extension NewAccount {
+extension WelcomeNewAccount {
     var opening: Opening {
         openingFigures(type, amount: amount, extra: type == .credit || type == .investment ? extra : nil)
     }
@@ -62,7 +62,7 @@ func accountWorth(_ type: AccountType, balance: Int64, creditLimit: Int64?, gain
 }
 
 /// core.ts netWorth(...).total for accounts not saved yet, converted at the server's rates (units per 1 USD).
-func previewNetWorth(_ accounts: [NewAccount], to: String, perUsd: [String: Double]) -> Int64 {
+func previewNetWorth(_ accounts: [WelcomeNewAccount], to: String, perUsd: [String: Double]) -> Int64 {
     accounts.reduce(0) { sum, a in
         let o = a.opening
         return sum + convert(accountWorth(a.type, balance: o.balance, creditLimit: o.creditLimit, gain: o.gain),

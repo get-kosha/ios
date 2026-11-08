@@ -35,6 +35,8 @@ public struct KoshaRoot: View {
     @State private var toasts = Toasts()
     @State private var lock: AppLock
     @State private var launching = true
+    /// Welcome's Skip: an account may stay without accounts and still reach the tabs.
+    @AppStorage(welcomeDoneKey) private var welcomeDone = false
     @Environment(\.scenePhase) private var phase
 
     public init(kosha: Kosha) {
@@ -71,6 +73,9 @@ public struct KoshaRoot: View {
                 default: break
                 }
             }
+            .onChange(of: kosha.signedIn) { _, signedIn in
+                if !signedIn { welcomeDone = false }
+            }
             .onChange(of: kosha.rejected) { _, r in
                 if let first = r.first {
                     toasts.show(first, warning: true)
@@ -103,6 +108,14 @@ public struct KoshaRoot: View {
     /// Deep links from the widget, Home Screen quick actions and App Shortcuts: app.getkosha://add?kind=income&scan=1.
     /// The sign-in fallback (app.getkosha:/oauth/callback) is handled by its web authentication session, not here.
     private func open(_ url: URL) {
+        // A statement shared to Kosha ("Open in Kosha"): CSV, OFX, QFX or PDF goes to Import.
+        if url.isFileURL {
+            guard kosha.signedIn else { return }
+            ImportInbox.shared.put([url])
+            nav.tab = .accounts
+            nav.push(.importStatements)
+            return
+        }
         guard url.scheme == "app.getkosha", url.host == "add", kosha.signedIn else { return }
         let q = Dictionary(
             (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value ?? "") },
@@ -126,7 +139,7 @@ public struct KoshaRoot: View {
             LaunchScreen()
         } else if lock.locked {
             LockScreen(lock: lock)
-        } else if let m = kosha.meta, m.wallets.isEmpty, !m.demo {
+        } else if let m = kosha.meta, m.wallets.isEmpty, !m.demo, !welcomeDone {
             NavigationStack { WelcomeFlow() }
         } else {
             MainTabs()

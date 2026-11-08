@@ -58,7 +58,7 @@ struct ProfilePage: View {
             VStack(alignment: .leading, spacing: 6) {
                 FieldLabel(L.settings_row_name())
                 KField("", text: $name).keyboard(.text)
-                Hint(L.settings_profile_name_desc())
+                SettingsHint(L.settings_profile_name_desc())
             }
             VStack(alignment: .leading, spacing: 6) {
                 FieldLabel(L.settings_row_email())
@@ -70,7 +70,7 @@ struct ProfilePage: View {
                 .padding(.horizontal, 14).frame(minHeight: 48)
                 .background(c.soft, in: .rect(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(c.line))
-                Hint(L.settings_profile_email_desc())
+                SettingsHint(L.settings_profile_email_desc())
             }
         }
         .onAppear { if name.isEmpty { name = m?.user?.name ?? "" } }
@@ -202,7 +202,7 @@ struct SecurityPage: View {
 
             GroupCaption(L.app_set_on_phone())
             Rows {
-                SwitchRow(L.app_set_unlock(), description: canLock ? L.app_set_unlock_desc() : L.app_set_unlock_unavailable(),
+                SettingsSwitchRow(L.app_set_unlock(), description: canLock ? L.app_set_unlock_desc() : L.app_set_unlock_unavailable(),
                           isOn: Binding(get: { lock }, set: setLock), enabled: canLock || lock)
                 if lock {
                     Hairline()
@@ -216,7 +216,7 @@ struct SecurityPage: View {
                     .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 14)
                 }
             }
-            Hint(L.app_set_lock_note())
+            SettingsHint(L.app_set_lock_note())
 
             SoftNote("globe-simple", L.app_set_opens_web(host: serverHost(kosha.server)))
 

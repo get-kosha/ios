@@ -102,7 +102,7 @@ extension EnvironmentValues {
 }
 
 /// A field that opens a picker: radius 14, a hairline, 48 high, an optional icon or label.
-struct PickField: View {
+struct StatementPickField: View {
     let value: String
     var icon: String? = nil
     var label: String? = nil
@@ -153,7 +153,7 @@ struct Note: View {
 }
 
 /// A section heading above a card: an uppercase caption, with something on the right.
-struct Section<Content: View>: View {
+struct StatementSection<Content: View>: View {
     let title: String
     var aside: String? = nil
     @ViewBuilder let content: Content
@@ -282,7 +282,7 @@ struct ChoiceSheet: View {
 }
 
 /// Words for one value: a field and Save.
-struct TextSheet: View {
+struct StatementTextSheet: View {
     let title: String
     let onSave: (String) -> Void
     let close: () -> Void
@@ -354,11 +354,11 @@ func columnsStatus(remembered: Bool, byAi: Bool, confident: Bool) -> String {
 /// Open when Kosha wasn't sure. Every change re-reads the file on the server with the new layout.
 struct Columns: View {
     let rows: [[String]]
-    let layout: Layout
+    let layout: StatementLayout
     let count: Int
     let status: String
     let byAi: Bool
-    let onChange: (Layout) -> Void
+    let onChange: (StatementLayout) -> Void
     @State private var open: Bool
     @State private var roleFor: RoleFor?
     @State private var formats = false
@@ -366,8 +366,8 @@ struct Columns: View {
 
     struct RoleFor: Identifiable { let id: Int }
 
-    init(rows: [[String]], layout: Layout, count: Int, status: String, byAi: Bool, startOpen: Bool,
-         onChange: @escaping (Layout) -> Void) {
+    init(rows: [[String]], layout: StatementLayout, count: Int, status: String, byAi: Bool, startOpen: Bool,
+         onChange: @escaping (StatementLayout) -> Void) {
         self.rows = rows
         self.layout = layout
         self.count = count

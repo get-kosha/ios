@@ -27,7 +27,7 @@ struct WelcomeFlow: View {
     @State private var name = ""
     @State private var currency = ""
     @State private var tz = ""
-    @State private var rows: [NewAccount] = []
+    @State private var rows: [WelcomeNewAccount] = []
     @State private var added: [String] = []
     @State private var busy = false
     @State private var checked = false
@@ -115,7 +115,7 @@ struct WelcomeFlow: View {
             // Rows still on the old main currency follow the new one.
             if rows.isEmpty {
                 rows = suggestions().prefix(3).filter { s in !m.wallets.contains { $0.name.lowercased() == s.name.lowercased() } }
-                    .map { NewAccount(name: $0.name, type: $0.type, currency: currency) }
+                    .map { WelcomeNewAccount(name: $0.name, type: $0.type, currency: currency) }
             } else {
                 rows = rows.map { var r = $0; if r.currency == m.primaryCurrency { r.currency = currency }; return r }
             }
@@ -163,11 +163,11 @@ struct WelcomeFlow: View {
             }
             let have = (rows.map(\.name) + m.wallets.map(\.name)).map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
             let missing = suggestions().filter { !have.contains($0.name.lowercased()) }
-            Flow(spacing: 8) {
+            WelcomeChips(spacing: 8) {
                 ForEach(missing.map(\.name) + [""], id: \.self) { label in
                     Chip(label.isEmpty ? L.welcome_another_account() : label, small: true, action: {
                         let s = missing.first { $0.name == label }
-                        rows.append(NewAccount(name: s?.name ?? "", type: s?.type ?? .bank, currency: currency))
+                        rows.append(WelcomeNewAccount(name: s?.name ?? "", type: s?.type ?? .bank, currency: currency))
                     }) { PhIcon("plus", size: 14) }
                     .frame(minHeight: 44)
                 }
@@ -269,17 +269,17 @@ private struct YouStep: View {
                 FieldLabel(L.welcome_name_title())
                 KField("", text: $name, error: checked && name.trimmingCharacters(in: .whitespaces).isEmpty ? L.welcome_name_error() : nil)
                     .keyboard(.text)
-                Hint(L.welcome_name_description())
+                SettingsHint(L.welcome_name_description())
             }
             VStack(alignment: .leading, spacing: 6) {
                 FieldLabel(L.welcome_currency_title())
-                PickField(nil, "\(currency.uppercased())  \(currencyName(currency, theme.locale))") { sheet = IdentifiedString(id: "currency") }
-                Hint(L.welcome_currency_description())
+                SettingsPickField(nil, "\(currency.uppercased())  \(currencyName(currency, theme.locale))") { sheet = IdentifiedString(id: "currency") }
+                SettingsHint(L.welcome_currency_description())
             }
             VStack(alignment: .leading, spacing: 6) {
                 FieldLabel(L.welcome_tz_title())
-                PickField(nil, "\(zoneCity(tz))  ·  \(tz)") { sheet = IdentifiedString(id: "zone") }
-                Hint(L.welcome_tz_description())
+                SettingsPickField(nil, "\(zoneCity(tz))  ·  \(tz)") { sheet = IdentifiedString(id: "zone") }
+                SettingsHint(L.welcome_tz_description())
             }
         }
         .padding(.top, 4)
@@ -299,7 +299,7 @@ private struct YouStep: View {
 /// One account to add: its colour, name (typed in place), type, currency and remove; then its figures, each on the
 /// keypad; and a line on what a card has left, what an investment has made, or its value in the main currency.
 private struct AccountCard: View {
-    @Binding var row: NewAccount
+    @Binding var row: WelcomeNewAccount
     let index: Int
     let primary: String
     let checked: Bool
@@ -513,7 +513,7 @@ private struct WelcomeNetWorth: Codable, Sendable {
 }
 
 /// Lays children out in rows, wrapping when the next one doesn't fit (the suggestion chips).
-struct Flow: Layout {
+struct WelcomeChips: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

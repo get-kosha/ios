@@ -197,7 +197,7 @@ struct TransferDetailScreen: View {
                     save(["received": .number(Double($0))], touchesReconciled: true)
                 } close: { close() }
             case .fee:
-                FeeSheet(fee: link.fee, currency: l.fromCurrency, close: close) {
+                TransferFeeSheet(fee: link.fee, currency: l.fromCurrency, close: close) {
                     close()
                     save(["fee": .number(Double($0))], touchesReconciled: true)
                 }
@@ -250,7 +250,7 @@ struct TransferDetailScreen: View {
 }
 
 /// The fee on the keypad; zero is allowed, so it can be cleared.
-private struct FeeSheet: View {
+private struct TransferFeeSheet: View {
     let currency: String
     let close: () -> Void
     let onSave: (Int64) -> Void

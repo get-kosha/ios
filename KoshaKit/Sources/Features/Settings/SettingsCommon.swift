@@ -463,7 +463,7 @@ struct NavRow<Extra: View>: View {
 }
 
 /// A row whose switch is the whole row: one tap anywhere toggles it, and VoiceOver reads it as a switch.
-struct SwitchRow<Extra: View>: View {
+struct SettingsSwitchRow<Extra: View>: View {
     let title: String
     let description: String?
     @Binding var isOn: Bool
@@ -539,7 +539,7 @@ struct SoftNote: View {
 }
 
 /// A line of small text under a card.
-struct Hint: View {
+struct SettingsHint: View {
     let text: String
     @Environment(\.kosha) private var theme
     init(_ text: String) { self.text = text }
@@ -555,7 +555,7 @@ struct FieldLabel: View {
 }
 
 /// A field-like button that opens a picker.
-struct PickField: View {
+struct SettingsPickField: View {
     let icon: String?
     let text: String
     let placeholder: Bool
@@ -656,7 +656,7 @@ struct InlineSwitch: View {
 }
 
 /// A confirmation in a sheet: what will happen and the danger button.
-struct ConfirmSheet: View {
+struct SettingsConfirmSheet: View {
     let title: String
     let text: String
     let button: String

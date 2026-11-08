@@ -18,7 +18,7 @@ struct Stmt: Sendable, Identifiable {
     /// A CSV's text and first rows, so a changed column choice re-reads it.
     var picked: Picked?
     var rows: [[String]] = []
-    var layout: Layout?
+    var layout: StatementLayout?
     var signature: String?
     var remembered = false
     var byAi = false
@@ -316,7 +316,7 @@ final class ImportModel {
     }
 
     /// A CSV read again with columns the person set.
-    func columns(_ s: Stmt, _ layout: Layout) {
+    func columns(_ s: Stmt, _ layout: StatementLayout) {
         let card = accts.first { $0.id == s.acct }.map { info($0).type } == .credit
         guard let picked = s.picked else { return }
         Task {
@@ -329,7 +329,7 @@ final class ImportModel {
         }
     }
 
-    private func replaced(_ s: Stmt, _ r: Read, _ layout: Layout?, card: Bool, edited: Bool = false) {
+    private func replaced(_ s: Stmt, _ r: Read, _ layout: StatementLayout?, card: Bool, edited: Bool = false) {
         guard let i = stmts.firstIndex(where: { $0.id == s.id }) else { return }
         let b = csvBalances(r.lines, card: card)
         stmts[i].lines = r.lines
@@ -554,7 +554,7 @@ final class ImportModel {
                             savedIds[a.id] = a.target
                         } else {
                             let credit = a.type == .credit
-                            let c: Created = try await kosha.api.post("/api/v1/accounts", NewAccount(
+                            let c: StatementCreated = try await kosha.api.post("/api/v1/accounts", NewAccount(
                                 name: i.name, type: credit ? "credit" : "bank", currency: a.currency, creditLimit: credit ? a.limit ?? 0 : nil))
                             savedIds[a.id] = c.id
                         }
@@ -740,7 +740,7 @@ private struct ImportChoose: View {
         let c = theme.colors
         let total = model.stmts.count + model.reading.count
         let readingNow = !model.reading.isEmpty
-        return Section(
+        return StatementSection(
             title: readingNow ? L.import_reading_files(count: model.batch, n: "\(model.batch)") : L.app_imp_n_files(count: total),
             aside: readingNow ? L.app_imp_read_progress(done: "\(model.batch - model.reading.count)", total: "\(model.batch)") : nil
         ) {
@@ -955,9 +955,9 @@ private struct AccountCard: View {
                 Segmented([(AccountType.bank, L.import_type_bank()), (.credit, L.import_type_card())],
                           selection: Binding(get: { a.type }, set: { model.setType(a, $0) }), small: true)
                 HStack(spacing: 8) {
-                    PickField(value: a.currency.uppercased(), label: L.import_field_currency(), mono: true) { open(.currency(a.id)) }
+                    StatementPickField(value: a.currency.uppercased(), label: L.import_field_currency(), mono: true) { open(.currency(a.id)) }
                     if a.type == .credit {
-                        PickField(value: a.limit.map { money($0, a.currency) } ?? L.import_optional(), label: L.accounts_credit_limit(),
+                        StatementPickField(value: a.limit.map { money($0, a.currency) } ?? L.import_optional(), label: L.accounts_credit_limit(),
                                   muted: a.limit == nil, mono: a.limit != nil) { open(.limit(a.id)) }
                     }
                 }
@@ -1108,7 +1108,7 @@ private struct ImportPayees: View {
                         }
                     }
                     if !pairs.isEmpty && tab != "all" {
-                        Section(title: L.subs_group_transfers()) {
+                        StatementSection(title: L.subs_group_transfers()) {
                             let routes = pairs.reduce(into: [String]()) { r, p in
                                 let k = "\(p.0.acct)>\(p.1.acct)"
                                 if !r.contains(k) { r.append(k) }
@@ -1143,7 +1143,7 @@ private struct ImportPayees: View {
         return Card {
             Text(L.import_rest()).kFont(.head)
             HStack(spacing: 8) {
-                PickField(value: cat?.name ?? L.import_rest_placeholder(), icon: cat.map { categoryIconName($0.icon) } ?? "squares-four",
+                StatementPickField(value: cat?.name ?? L.import_rest_placeholder(), icon: cat.map { categoryIconName($0.icon) } ?? "squares-four",
                           muted: rest.isEmpty) { sheet = .rest }
                 KButton(L.import_apply(), size: .small) {
                     if let cat { for g in open where cat.isIncome == g.income { choose(g, rest) } }
@@ -1162,7 +1162,7 @@ private struct ImportPayees: View {
         switch s {
         case .name(let id):
             if let g = list.first(where: { $0.id == id }) {
-                TextSheet(title: L.import_payee_for(text: g.lines[0].line.description), start: g.payee,
+                StatementTextSheet(title: L.import_payee_for(text: g.lines[0].line.description), start: g.payee,
                           onSave: { v in if v != g.payee { model.edit(g, payee: v) } }, close: close)
             }
         case .category(let id):

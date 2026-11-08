@@ -99,7 +99,7 @@ struct AiSettingsPage: View {
         Page(L.settings_section_ai(), actions: { Pill(L.settings_badge_beta()).padding(.trailing, 12) }) {
             Text(L.app_set_ai_intro()).kFont(.small).foregroundStyle(c.ink3)
             Rows {
-                SwitchRow(L.settings_ai_enabled_title(), description: L.settings_ai_enabled_description(),
+                SettingsSwitchRow(L.settings_ai_enabled_title(), description: L.settings_ai_enabled_description(),
                           isOn: prefBinding(kosha, w, "ai_enabled"))
             }
             if on {
@@ -115,7 +115,7 @@ struct AiSettingsPage: View {
                     }
                     NavRow(L.app_set_ai_add_provider(), description: L.app_set_ai_add_provider_desc(), icon: "plus") { adding = true }
                 }
-                if providers != nil && !connected.contains(where: \.isDefault) { Hint(L.settings_ai_features_note()) }
+                if providers != nil && !connected.contains(where: \.isDefault) { SettingsHint(L.settings_ai_features_note()) }
 
                 GroupCaption(L.settings_ai_features())
                 Rows {
@@ -124,7 +124,7 @@ struct AiSettingsPage: View {
                         if i > 0 { Hairline() }
                         let value = m.prefOf(f.pref) == "1"
                         let blocked = f.needs.filter { m.prefOf($0) != "1" }.map(needLabel)
-                        SwitchRow(featureTitle(f), description: featureDescription(f), isOn: prefBinding(kosha, w, f.pref)) {
+                        SettingsSwitchRow(featureTitle(f), description: featureDescription(f), isOn: prefBinding(kosha, w, f.pref)) {
                             if value && !blocked.isEmpty {
                                 Text(blocked.joined(separator: " ")).kFont(.xs).foregroundStyle(c.warn).padding(.top, 4)
                             }
@@ -235,11 +235,11 @@ struct AiProviderPage: View {
                 } else {
                     KField(usesBaseUrl(id) ? "" : keyPlaceholder(id), text: $key, icon: "key", secure: true).keyboard(.url)
                 }
-                Hint(usesBaseUrl(id) ? L.settings_ai_url_note() : L.app_set_ai_key_stored())
+                SettingsHint(usesBaseUrl(id) ? L.settings_ai_url_note() : L.app_set_ai_key_stored())
             }
             VStack(alignment: .leading, spacing: 6) {
                 FieldLabel(L.settings_ai_model())
-                PickField(nil, p.model.isEmpty ? (models.isEmpty ? L.settings_ai_test_to_load() : L.settings_ai_pick_model()) : p.model,
+                SettingsPickField(nil, p.model.isEmpty ? (models.isEmpty ? L.settings_ai_test_to_load() : L.settings_ai_pick_model()) : p.model,
                           placeholder: p.model.isEmpty) {
                     if !models.isEmpty && !w.refused() { picking = true }
                 }
@@ -315,7 +315,7 @@ struct AiPrivacyPage: View {
                 ForEach(shares().indices, id: \.self) { i in
                     let s = shares()[i]
                     if i > 0 { Hairline() }
-                    SwitchRow(s.title, description: s.description, isOn: prefBinding(kosha, w, s.pref))
+                    SettingsSwitchRow(s.title, description: s.description, isOn: prefBinding(kosha, w, s.pref))
                 }
             }
             GroupCaption(L.settings_ai_example())
@@ -351,7 +351,7 @@ struct AiPrivacyPage: View {
                 }
             }
             Rows {
-                SwitchRow(L.settings_ai_log_title(), description: L.settings_ai_log_description(), isOn: prefBinding(kosha, w, "ai_log_enabled"))
+                SettingsSwitchRow(L.settings_ai_log_title(), description: L.settings_ai_log_description(), isOn: prefBinding(kosha, w, "ai_log_enabled"))
             }
         }
     }

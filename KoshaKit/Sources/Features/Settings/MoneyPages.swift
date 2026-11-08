@@ -97,7 +97,7 @@ struct CurrenciesPage: View {
                 }
                 .buttonStyle(PressStyle())
             }
-            Hint(L.app_set_currencies_note())
+            SettingsHint(L.app_set_currencies_note())
 
             GroupCaption(L.settings_currencies_rates())
             Card {
@@ -489,7 +489,7 @@ struct CategoryEditPage: View {
                 }
             case .delete:
                 if let cat {
-                    ConfirmSheet(title: L.settings_cat_delete_title(name: cat.name), text: L.settings_cat_delete_body(),
+                    SettingsConfirmSheet(title: L.settings_cat_delete_title(name: cat.name), text: L.settings_cat_delete_body(),
                                  button: L.common_delete(), action: {
                                      w.send("DELETE", "/api/v1/categories/\(cat.id)") {
                                          w.toast(L.settings_cat_deleted(name: cat.name))
@@ -714,7 +714,7 @@ private struct EventEditor: View {
             }
         }
         .kSheet(isPresented: $confirm) {
-            ConfirmSheet(title: L.settings_events_delete_title(name: event.name), text: L.settings_events_delete_body(count: event.transactionCount),
+            SettingsConfirmSheet(title: L.settings_events_delete_title(name: event.name), text: L.settings_events_delete_body(count: event.transactionCount),
                          button: L.common_delete(), action: {
                              w.send("DELETE", "/api/v1/events/\(event.id)") {
                                  w.toast(L.settings_events_deleted(name: event.name))
@@ -762,7 +762,7 @@ struct RulesPage: View {
         Page(L.settings_section_rules()) {
             Text(L.settings_section_rules_desc()).kFont(.small).foregroundStyle(c.ink3)
             Rows {
-                SwitchRow(L.settings_rules_learn_title(), description: L.settings_rules_learn_description(),
+                SettingsSwitchRow(L.settings_rules_learn_title(), description: L.settings_rules_learn_description(),
                           isOn: prefBinding(kosha, w, "learn_rules"))
             }
             Card {
@@ -772,7 +772,7 @@ struct RulesPage: View {
                     KField(L.settings_rules_payee_placeholder(), text: $newPayee).keyboard(.text)
                 }
                 Segmented([(false, L.settings_rules_contains()), (true, L.settings_rules_is_exactly())], selection: $newExact, small: true)
-                PickField("squares-four", newCategory.flatMap { catName($0)?.name } ?? L.settings_rules_pick_category(),
+                SettingsPickField("squares-four", newCategory.flatMap { catName($0)?.name } ?? L.settings_rules_pick_category(),
                           placeholder: newCategory == nil) { if !w.refused() { picking = true } }
                 Text(L.settings_rules_new_hint()).kFont(.xs).foregroundStyle(c.ink3)
             }
@@ -901,7 +901,7 @@ private struct RuleSheet: View {
                 FieldLabel(L.settings_rules_payee())
                 KField("", text: $payee).keyboard(.text)
                 Segmented([(false, L.settings_rules_contains()), (true, L.settings_rules_is_exactly())], selection: $exact, small: true)
-                PickField("squares-four", kosha.meta?.categories.first { $0.id == category }?.name ?? L.settings_rules_deleted_category()) {
+                SettingsPickField("squares-four", kosha.meta?.categories.first { $0.id == category }?.name ?? L.settings_rules_deleted_category()) {
                     picking = true
                 }
                 HStack(spacing: 8) {

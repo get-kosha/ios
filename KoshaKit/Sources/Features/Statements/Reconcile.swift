@@ -17,7 +17,7 @@ struct Statement: Sendable {
     var withdrawn: [String] = []
     var file: Picked?
     var rows: [[String]] = []
-    var layout: Layout?
+    var layout: StatementLayout?
     var signature: String?
     var remembered = false
     var byAi = false
@@ -303,11 +303,11 @@ private struct ReconcileStart: View {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L.reconcile_statement_date()).kFont(.small).foregroundStyle(c.ink3).lineLimit(1)
-                    PickField(value: shortDay(model.day, kosha, theme.locale), icon: "calendar-blank") { sheet = .day }
+                    StatementPickField(value: shortDay(model.day, kosha, theme.locale), icon: "calendar-blank") { sheet = .day }
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(balanceLabel(acc)).kFont(.small).foregroundStyle(c.ink3).lineLimit(1)
-                    PickField(value: money(model.balance ?? fromKosha(quick), acc.currency), muted: model.balance == nil, mono: true) {
+                    StatementPickField(value: money(model.balance ?? fromKosha(quick), acc.currency), muted: model.balance == nil, mono: true) {
                         sheet = .balance
                     }
                 }
@@ -681,7 +681,7 @@ private struct ReconcileTick: View {
     private func missingSection(_ t: TickCalc, fmt: @escaping (Int64) -> String) -> some View {
         let c = theme.colors
         let count = t.missing.filter { !t.row($0).skip }.count
-        return Section(title: L.reconcile_missing_title(count: "\(t.missing.count)"),
+        return StatementSection(title: L.reconcile_missing_title(count: "\(t.missing.count)"),
                        aside: model.busy == "tidy" ? L.reconcile_naming_payees() : nil) {
             Card {
                 ForEach(Array(t.missing.enumerated()), id: \.offset) { i, l in
@@ -732,7 +732,7 @@ private struct ReconcileTick: View {
     }
 
     private func closeSection(_ t: TickCalc, fmt: @escaping (Int64) -> String) -> some View {
-        Section(title: L.reconcile_close_title(count: "\(t.plan.close.count)")) {
+        StatementSection(title: L.reconcile_close_title(count: "\(t.plan.close.count)")) {
             ForEach(t.plan.close, id: \.self) { p in
                 if let e = t.d.open.first(where: { $0.id == p.entry }) {
                     let l = t.lines[p.line]
@@ -793,7 +793,7 @@ private struct ReconcileTick: View {
             return e.isPaid ? nil : L.reconcile_note_still_due()
         }
         return Group {
-            Section(title: st != nil ? L.reconcile_in_kosha() : L.reconcile_tick_title(),
+            StatementSection(title: st != nil ? L.reconcile_in_kosha() : L.reconcile_tick_title(),
                     aside: L.reconcile_ticked_count(count: countText(t.ticked.count, theme.locale))) {
                 Card(tight: true) {
                     if !t.earlier.isEmpty {
@@ -883,7 +883,7 @@ private struct ReconcileTick: View {
             SignedAmountSheet(title: balanceLabel(a), start: model.balance, currency: a.currency, signed: true,
                               onDone: { model.balance = $0 }) { sheet = nil }
         case .payee(let ref, let value):
-            TextSheet(title: L.reconcile_payee(), start: value, onSave: { v in pick(ref) { $0.payee = v } }) { sheet = nil }
+            StatementTextSheet(title: L.reconcile_payee(), start: value, onSave: { v in pick(ref) { $0.payee = v } }) { sheet = nil }
         case .category(let ref, let income, let value):
             let others = t.m.wallets.filter { !$0.isArchived && $0.id != a.id }
             ListPicker(

@@ -61,7 +61,7 @@ struct DataExportPage: View {
                 ExportRow(icon: "file-code", title: L.settings_data_everything(), sub: L.settings_data_everything_sub(),
                           path: "/api/app/export/kosha.json", fileName: "kosha.json")
             }
-            Hint(L.app_set_export_note())
+            SettingsHint(L.app_set_export_note())
         }
     }
 }
@@ -147,7 +147,7 @@ struct ApiMcpPage: View {
 
             GroupCaption(L.settings_api_connected_apps())
             let apps = access?.apps ?? []
-            if access != nil && apps.isEmpty { Hint(L.settings_api_none()) }
+            if access != nil && apps.isEmpty { SettingsHint(L.settings_api_none()) }
             if !apps.isEmpty {
                 Rows {
                     ForEach(apps.indices, id: \.self) { i in
@@ -168,7 +168,7 @@ struct ApiMcpPage: View {
                 KButton(L.settings_api_new_key(), style: .soft, size: .small, icon: "plus") { if !w.refused() { creating = true } }
             }
             let keys = access?.keys ?? []
-            if access != nil && keys.isEmpty && made == nil { Hint(L.settings_api_no_keys()) }
+            if access != nil && keys.isEmpty && made == nil { SettingsHint(L.settings_api_no_keys()) }
             if !keys.isEmpty || made != nil {
                 Rows {
                     ForEach(keys.indices, id: \.self) { i in
@@ -230,7 +230,7 @@ struct ApiMcpPage: View {
         }
         .kSheet(item: $confirm) { x in
             let isKey = x.kind == "key"
-            ConfirmSheet(title: isKey ? L.settings_api_delete_title(name: x.name) : L.settings_api_disconnect_title(name: x.name),
+            SettingsConfirmSheet(title: isKey ? L.settings_api_delete_title(name: x.name) : L.settings_api_disconnect_title(name: x.name),
                          text: isKey ? L.settings_api_delete_body() : L.settings_api_disconnect_body(),
                          button: isKey ? L.common_delete() : L.settings_api_disconnect(), action: {
                              w.send("DELETE", isKey ? "/api/app/api-keys/\(x.id)" : "/api/app/connected-apps/\(x.id)") {

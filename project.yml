@@ -53,6 +53,20 @@ targets:
         UIApplicationSupportsIndirectInputEvents: true
         UIBackgroundModes: [fetch]
         BGTaskSchedulerPermittedIdentifiers: [app.getkosha.outbox]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Bank statement
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.comma-separated-values-text, com.adobe.pdf, app.getkosha.ofx, app.getkosha.qfx]
+        LSSupportsOpeningDocumentsInPlace: false
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: app.getkosha.ofx
+            UTTypeConformsTo: [public.data, public.text]
+            UTTypeDescription: OFX statement
+            UTTypeTagSpecification: { public.filename-extension: [ofx] }
+          - UTTypeIdentifier: app.getkosha.qfx
+            UTTypeConformsTo: [public.data, public.text]
+            UTTypeDescription: QFX statement
+            UTTypeTagSpecification: { public.filename-extension: [qfx] }
         CFBundleURLTypes:
           - CFBundleURLName: app.getkosha
             CFBundleURLSchemes: [app.getkosha]

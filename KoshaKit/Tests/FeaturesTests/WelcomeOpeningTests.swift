@@ -21,14 +21,14 @@ import Model
 @Test func netWorthPreviewMatchesTheDesign() {
     // 2,418.30 in the bank, 683.57 owed of 2,000.00, 18,900.00 put in worth 21,077.03 today: €22,811.76.
     let rows = [
-        NewAccount(name: "N26 Main", type: .bank, currency: "eur", amount: 241_830),
-        NewAccount(name: "Visa Card", type: .credit, currency: "eur", amount: 68357, extra: 200_000),
-        NewAccount(name: "Trade Republic", type: .investment, currency: "eur", amount: 1_890_000, extra: 2_107_703),
+        WelcomeNewAccount(name: "N26 Main", type: .bank, currency: "eur", amount: 241_830),
+        WelcomeNewAccount(name: "Visa Card", type: .credit, currency: "eur", amount: 68357, extra: 200_000),
+        WelcomeNewAccount(name: "Trade Republic", type: .investment, currency: "eur", amount: 1_890_000, extra: 2_107_703),
     ]
     #expect(previewNetWorth(rows, to: "eur", perUsd: [:]) == 2_281_176)
 }
 
 @Test func netWorthPreviewConvertsAtTheServersRates() {
-    let rows = [NewAccount(name: "HDFC", type: .bank, currency: "inr", amount: 946_000)]
+    let rows = [WelcomeNewAccount(name: "HDFC", type: .bank, currency: "inr", amount: 946_000)]
     #expect(previewNetWorth(rows, to: "eur", perUsd: ["eur": 1.0, "inr": 94.6]) == 10000)
 }

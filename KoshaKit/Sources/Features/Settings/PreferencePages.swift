@@ -37,7 +37,7 @@ struct GeneralPage: View {
             }
             GroupCaption(L.settings_general_month())
             Rows {
-                SwitchRow(L.settings_row_round_amounts(),
+                SettingsSwitchRow(L.settings_row_round_amounts(),
                           description: L.settings_general_round_desc(rounded: wholeMoney(143_600, kosha.primary, theme.locale), full: full),
                           isOn: prefBinding(kosha, w, "round_hero"))
             }
@@ -56,7 +56,7 @@ struct GeneralPage: View {
                 }
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 Hairline()
-                SwitchRow(L.settings_row_suggest_category(), description: L.settings_general_suggest_desc(),
+                SettingsSwitchRow(L.settings_row_suggest_category(), description: L.settings_general_suggest_desc(),
                           isOn: prefBinding(kosha, w, "suggest_category"))
             }
         }
@@ -203,7 +203,7 @@ struct RecurringDefaultsPage: View {
         Page(L.settings_section_recurring()) {
             GroupCaption(L.settings_rec_group())
             Rows {
-                SwitchRow(L.settings_rec_auto_title(), description: L.settings_rec_auto_description(),
+                SettingsSwitchRow(L.settings_rec_auto_title(), description: L.settings_rec_auto_description(),
                           isOn: prefBinding(kosha, w, "default_auto_pay"))
             }
             Card {
