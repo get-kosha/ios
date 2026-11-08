@@ -1,6 +1,6 @@
 import XCTest
 
-/// Signs in to a Kosha dev server as the read-only demo account, opens every main screen in light and dark, and keeps a
+/// Run with the KoshaTour scheme. Signs in to a Kosha dev server as the read-only demo account, opens every main screen in light and dark, and keeps a
 /// screenshot of each as an attachment (export them from the .xcresult). Fails if a screen crashes. Needs `npm run dev`
 /// in ../kosha-web; the simulator reaches localhost directly. Skipped when the server can't be reached. Mirrors the
 /// Android app's TourTest.kt; the app does the signing in itself (debug builds only), since UI tests run in their own

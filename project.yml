@@ -114,7 +114,24 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.getkosha.uitests
         GENERATE_INFOPLIST_FILE: YES
 schemes:
+  # The app, and KoshaKit's unit tests on the simulator: what Xcode Cloud runs on every push to main.
   Kosha:
+    build:
+      targets:
+        Kosha: all
+    test:
+      gatherCoverageData: false
+      targets:
+        - package: KoshaKit/ModelTests
+        - package: KoshaKit/DesignTests
+        - package: KoshaKit/StoreTests
+        - package: KoshaKit/FeaturesTests
+    run:
+      config: Debug
+    archive:
+      config: Release
+  # The screenshot tour (KoshaUITests): needs a Kosha dev server at localhost:3000, so it runs by hand.
+  KoshaTour:
     build:
       targets:
         Kosha: all
@@ -122,5 +139,3 @@ schemes:
     test:
       targets:
         - KoshaUITests
-    run:
-      config: Debug

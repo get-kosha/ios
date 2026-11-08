@@ -56,6 +56,8 @@ private func d(_ s: String) -> Day { Day(s)! }
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("kosha-test-\(UUID().uuidString).zip")
     try zip.write(to: url)
     defer { try? FileManager.default.removeItem(at: url) }
+    // The system unzip checks the archive where there is one: on the Mac (`swift test`), not on the simulator.
+    #if os(macOS)
     let unzip = Process()
     unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
     unzip.arguments = ["-t", url.path]
@@ -63,4 +65,5 @@ private func d(_ s: String) -> Day { Day(s)! }
     try unzip.run()
     unzip.waitUntilExit()
     #expect(unzip.terminationStatus == 0)
+    #endif
 }
