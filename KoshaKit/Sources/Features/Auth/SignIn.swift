@@ -114,7 +114,8 @@ struct BrandPanel: View {
             Spacer(minLength: 0)
             brandImage("SymbolReversed").resizable().scaledToFit().frame(height: 56)
                 .accessibilityHidden(true)
-            brandImage("WordmarkReversed").resizable().scaledToFit().frame(height: 46)
+            brandImage("WordmarkWhite").resizable().renderingMode(.template).scaledToFit().frame(height: 46)
+                .foregroundStyle(Brand.paper)
                 .padding(.top, 22)
                 .accessibilityLabel("Kosha")
             Text(L.auth_headline_default())
@@ -173,7 +174,7 @@ public struct SignInScreen: View {
                             Task { await flow.begin(defaultServer, demo: true, session: session) }
                         }
                         Text(L.app_signin_note(host: SignInFlow.host(defaultServer)))
-                            .kFont(.sans(14, .regular)).foregroundStyle(c.ink3).multilineTextAlignment(.center)
+                            .kFont(.small).foregroundStyle(c.ink3).multilineTextAlignment(.center)
                             .padding(.top, 6)
                         Button(L.app_signin_own_server()) { ownServer = true }
                             .kFont(.sans(15, .regular)).foregroundStyle(c.ink2).frame(minHeight: 44)
@@ -325,7 +326,8 @@ public struct LaunchScreen: View {
             brandImage("SymbolReversed").resizable().scaledToFit().frame(height: 84)
             VStack {
                 Spacer()
-                brandImage("WordmarkReversed").resizable().scaledToFit().frame(height: 20).opacity(0.7)
+                brandImage("WordmarkWhite").resizable().renderingMode(.template).scaledToFit().frame(height: 20)
+                    .foregroundStyle(Brand.paper.opacity(0.7))
                     .padding(.bottom, 56)
             }
         }
