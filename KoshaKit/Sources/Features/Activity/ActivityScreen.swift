@@ -325,7 +325,15 @@ struct TxRow: View {
                     }
                     Text(L.tx_kind_transfer() + " · " + L.subs_not_counted()).kFont(.xs).foregroundStyle(c.ink3).lineLimit(1)
                 } else {
-                    Text(t.payee.isEmpty ? category?.name ?? L.tx_untitled() : t.payee).lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(t.payee.isEmpty ? category?.name ?? L.tx_untitled() : t.payee).lineLimit(1)
+                        if let badge {
+                            Text(badge).kFont(.xs).foregroundStyle(c.ink3).lineLimit(1)
+                                .padding(.horizontal, 6)
+                                .background(c.soft, in: .rect(cornerRadius: 4))
+                                .fixedSize()
+                        }
+                    }
                     HStack(spacing: 4) {
                         Text((category?.name ?? t.categoryName) + " ·").kFont(.xs).foregroundStyle(c.ink3).lineLimit(1)
                             .layoutPriority(1)
@@ -353,6 +361,9 @@ struct TxRow: View {
                     MoneyText(t.amount, t.currency, sign: .none, color: c.ink2)
                 } else if t.amount > 0 {
                     MoneyText(t.amount, t.currency, sign: .always, color: c.pos)
+                } else if t.refundState == .full {
+                    // Refunded in full: it happened, but costs nothing now.
+                    MoneyText(t.amount, t.currency, color: c.ink3).strikethrough(color: c.ink3)
                 } else {
                     MoneyText(t.amount, t.currency)
                 }
@@ -368,6 +379,16 @@ struct TxRow: View {
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, minHeight: theme.dims.row, alignment: .leading)
         .background(c.surface)
+    }
+
+    /// refund, refunded or part refunded (transactions.tsx Row).
+    private var badge: String? {
+        if t.refundOf != nil { return L.tx_refund_badge() }
+        switch t.refundState {
+        case .full: return L.tx_refunded_badge()
+        case .part: return L.tx_part_refunded_badge()
+        case .none: return nil
+        }
     }
 
     private var rest: [String] {

@@ -81,10 +81,26 @@ public struct Transaction: Codable, Sendable, Hashable, Identifiable {
     @D public var reconciled: Bool
     public var bankRef: String?
     @D public var attachmentCount: Int
+    /// A refund: the spending entry it gave money back for. Totals count it as spending undone, never as income.
     public var refundOf: String?
+    /// A spending entry's refunds, each in the account it came back to. Empty for anything else, and before the
+    /// server sends them.
+    @D public var refunds: [Refund]
+    /// The refunds' total in this entry's currency, from the server (other currencies at today's rate). nil from a
+    /// server too old to take refunds, which would save one as plain income.
+    public var refunded: Int64?
 
     public var hhmm: String { time ?? "12:00" }
     public var isUpcoming: Bool { status == "upcoming" }
+
+    /// Money that came back for a spending entry: positive, in that account's currency.
+    public struct Refund: Codable, Sendable, Hashable, Identifiable {
+        public var id: String
+        public var accountId: String
+        public var amount: Int64
+        public var currency: String
+        public var day: String
+    }
 
     public struct TransferLink: Codable, Sendable, Hashable {
         public var id: String
@@ -136,11 +152,13 @@ public struct NewTransaction: Codable, Sendable, Hashable {
     public var note: String
     public var tags: [String]
     public var eventId: String?
+    /// Makes this a refund for that paid spending entry; the server gives it the entry's category.
+    public var refundOf: String?
 
     public init(
         id: String = UUID().uuidString.lowercased(), accountId: String, payee: String, amount: Int64,
         categoryId: String? = nil, subcategoryId: String? = nil, day: String? = nil, time: String? = nil,
-        note: String = "", tags: [String] = [], eventId: String? = nil
+        note: String = "", tags: [String] = [], eventId: String? = nil, refundOf: String? = nil
     ) {
         self.id = id
         self.accountId = accountId
@@ -153,6 +171,7 @@ public struct NewTransaction: Codable, Sendable, Hashable {
         self.note = note
         self.tags = tags
         self.eventId = eventId
+        self.refundOf = refundOf
     }
 }
 

@@ -234,6 +234,9 @@ struct DeleteConfirm: View {
             if transfer {
                 Text(L.tx_delete_transfer_both()).kFont(.small).foregroundStyle(c.ink2).multilineTextAlignment(.center)
             }
+            if !t.refunds.isEmpty {
+                Text(L.tx_delete_refunds()).kFont(.small).foregroundStyle(c.ink2).multilineTextAlignment(.center)
+            }
             if t.attachmentCount > 0 {
                 Text(L.app_act_receipt_deleted(count: t.attachmentCount)).kFont(.small).foregroundStyle(c.ink2)
                     .multilineTextAlignment(.center)

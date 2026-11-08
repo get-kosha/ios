@@ -13,6 +13,27 @@ public enum Categories {
     public static func isSystem(_ id: String) -> Bool { isNeutral(id) || id == transferFee }
 }
 
+/// How much of a spending entry came back.
+public enum RefundState: Sendable, Equatable { case none, part, full }
+
+extension Transaction {
+    /// Paid spending that isn't a transfer, a correction or itself a refund can take refunds (core.ts canRefund), on a
+    /// server that knows refunds.
+    public var canRefund: Bool {
+        refunded != nil && amount < 0 && !isUpcoming && transfer == nil && refundOf == nil
+            && !Categories.isNeutral(categoryId)
+    }
+
+    /// Refunded in full once the refunds reach what was spent (core.ts refundedShare), from the server's `refunded`.
+    public var refundState: RefundState {
+        guard amount < 0, let refunded, refunded > 0 else { return .none }
+        return refunded >= -amount ? .full : .part
+    }
+
+    /// What's still to come back, in this entry's currency.
+    public var refundLeft: Int64 { max(0, -amount - (refunded ?? 0)) }
+}
+
 /// Converts at rates held as units per 1 USD (core.ts convert), rounded to whole minor units.
 /// ponytail: an unknown currency passes through unconverted, as on the web.
 public func convert(_ minor: Int64, from: String, to: String, perUsd: [String: Double]) -> Int64 {

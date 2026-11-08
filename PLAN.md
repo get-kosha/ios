@@ -106,6 +106,7 @@ Each screen is done when it matches its PNG in light and dark, works in neutral 
   - A card's Pay in Needs attention prefills the transfer (card as To, owed amount); Android opens an empty one.
   - Android reads some AI and suggestion preferences with a default of "0"; the web's PREFS default them to "1". iOS uses the web's defaults.
   - Android's Activity cache key used `String.hashCode`; iOS uses a stable FNV hash (Swift's hash changes every launch).
+- **Refunds** (web 683a199) show only when the server sends a transaction's `refunded` total. An older server drops the unknown `refundOf` on create_transactions and would save the refund as plain income. Refunds are created online only (each with its own id), not queued, so the entry's list of refunds stays true.
 - **Sheets keep the system style** (owner's call, 8 Nov): iOS 27 draws partial-height sheets inset from the screen edges, where the boards attach them at the bottom.
 - **The wordmark is type:** "kosha" in Bricolage Grotesque Bold (a static instance of the web's variable font, OFL, licence in Resources/Fonts), as the Launch and SignIn boards set it.
 - **CI:** Xcode Cloud. Every push to `main` runs the `Kosha` scheme's tests (KoshaKit's unit tests on the simulator); a `v*` tag archives and uploads to TestFlight. `ci_scripts/ci_post_clone.sh` installs XcodeGen and generates the project, which isn't in the repo. The screenshot tour is the `KoshaTour` scheme and runs by hand against a dev server.

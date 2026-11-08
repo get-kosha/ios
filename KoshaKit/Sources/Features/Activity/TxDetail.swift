@@ -68,6 +68,7 @@ struct TxDetailScreen: View {
 
     private var kindLabel: String {
         guard let t else { return "" }
+        if t.refundOf != nil { return L.tx_kind_refund() }
         if Categories.isNeutral(t.categoryId) { return L.tx_kind_correction() }
         return t.amount > 0 ? L.tx_kind_income() : L.tx_kind_expense()
     }
@@ -127,10 +128,19 @@ struct TxDetailScreen: View {
             Card(tight: true) {
                 FieldRow(label: L.tx_payee(), action: { edit(.payee) }) { Text(t.payee.isEmpty ? "—" : t.payee).lineLimit(2) }
                 Hairline()
-                FieldRow(label: L.tx_category(), action: { edit(.category) }) {
-                    HStack(spacing: 8) {
-                        PhIcon(categoryIconName(category?.icon), size: 18)
-                        Text(category?.name ?? t.categoryName).lineLimit(1)
+                if t.refundOf != nil {
+                    // A refund keeps its spending entry's category, which changes with that entry.
+                    let name = category?.name ?? t.categoryName
+                    Text(L.tx_refund_for(name: t.payee.isEmpty ? name : t.payee, category: name))
+                        .kFont(.small).foregroundStyle(c.ink3)
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    FieldRow(label: L.tx_category(), action: { edit(.category) }) {
+                        HStack(spacing: 8) {
+                            PhIcon(categoryIconName(category?.icon), size: 18)
+                            Text(category?.name ?? t.categoryName).lineLimit(1)
+                        }
                     }
                 }
                 Hairline()
@@ -145,75 +155,93 @@ struct TxDetailScreen: View {
                     Text((Day(t.day).map { dayText($0, theme.locale, weekday: true, year: true) } ?? t.day)
                          + " · " + DayFormat.time(t.hhmm, theme.locale))
                 }
-                Hairline()
-                HStack(spacing: 12) {
-                    Text(L.tx_type()).kFont(.small).foregroundStyle(c.ink3).frame(width: 76, alignment: .leading)
-                    Segmented(
-                        [("expense", L.tx_kind_expense()), ("income", L.tx_kind_income()), ("transfer", L.tx_kind_transfer())],
-                        selection: Binding(get: { t.amount > 0 ? "income" : "expense" }, set: { kind in
-                            if kind == "transfer" {
-                                guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
-                                nav.openAdd(AddRequest(kind: .transfer, duplicateOf: t.id))
-                            } else if (kind == "income") != (t.amount > 0) {
-                                save(["amount": .number(Double(-t.amount))], touchesReconciled: true)
-                            }
-                        }),
-                        small: true
-                    )
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .frame(minHeight: theme.dims.settingsRow)
+                if t.refundOf == nil { typeRow(t) }
             }
-            Card {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(L.tx_tags()).kFont(.small).foregroundStyle(c.ink3)
-                    FlowLayout(spacing: 6) {
-                        ForEach(t.tags, id: \.self) { tag in
-                            Chip("#\(tag)", small: true) { nav.push(.tagView(tag: tag, eventId: nil)) }
-                                .accessibilityLabel(L.tx_tag_link(tag: tag))
-                        }
-                        Chip(L.tx_add_tags(), soft: true, small: true) { edit(.tags) } leading: { PhIcon("plus", size: 14) }
-                    }
-                    Hairline()
-                    Button { edit(.note) } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(L.tx_note()).kFont(.small).foregroundStyle(c.ink3)
-                            Text(t.note.isEmpty ? L.tx_note_placeholder() : t.note).foregroundStyle(t.note.isEmpty ? c.ink3 : c.ink)
-                                .multilineTextAlignment(.leading)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(PressStyle())
-                    Hairline()
-                    let event = kosha.meta?.events.first { $0.id == t.eventId }
-                    HStack {
-                        Text(L.tx_event()).kFont(.small).foregroundStyle(c.ink3)
-                        Spacer()
-                        Chip(event?.name ?? L.tx_add_to_event(), soft: true, small: true) {
-                            if let event, !kosha.canWrite { nav.push(.tagView(tag: nil, eventId: event.id)) } else { edit(.event) }
-                        } leading: { PhIcon("calendar-star", size: 14) }
-                        if let event {
-                            IconButton("arrow-right", label: L.app_act_event_all_dates()) {
-                                nav.push(.tagView(tag: nil, eventId: event.id))
-                            }
-                        }
-                    }
-                }
-            }
+            tagsCard(t)
             if kosha.meta?.attachments == true { AttachmentsCard(t: t) { edit(.attach) } }
+            if t.canRefund { RefundsCard(t: t) }
             if t.reconciled { ReconciledNote() }
             if !t.payee.trimmingCharacters(in: .whitespaces).isEmpty { AtPayee(payee: t.payee) }
             if kosha.canWrite {
-                LinkCard(icon: "arrows-clockwise", label: L.add_make_recurring()) {
-                    nav.push(.recurringForm(fromTransaction: t.id))
+                if t.refundOf == nil {
+                    LinkCard(icon: "arrows-clockwise", label: L.add_make_recurring()) {
+                        nav.push(.recurringForm(fromTransaction: t.id))
+                    }
                 }
                 HStack(spacing: 8) {
-                    KButton(L.tx_duplicate(), style: .secondary, size: .medium, icon: "copy") {
-                        nav.openAdd(AddRequest(duplicateOf: t.id))
+                    if t.refundOf == nil {
+                        KButton(L.tx_duplicate(), style: .secondary, size: .medium, icon: "copy") {
+                            nav.openAdd(AddRequest(duplicateOf: t.id))
+                        }
                     }
                     KButton(L.common_delete(), style: .danger, size: .medium, icon: "trash") { sheet = .delete }
+                }
+            }
+        }
+    }
+
+    /// Expense · Income · Transfer. A refund has no type to change.
+    @ViewBuilder
+    private func typeRow(_ t: Model.Transaction) -> some View {
+        let c = theme.colors
+        Hairline()
+        HStack(spacing: 12) {
+            Text(L.tx_type()).kFont(.small).foregroundStyle(c.ink3).frame(width: 76, alignment: .leading)
+            Segmented(
+                [("expense", L.tx_kind_expense()), ("income", L.tx_kind_income()), ("transfer", L.tx_kind_transfer())],
+                selection: Binding(get: { t.amount > 0 ? "income" : "expense" }, set: { kind in
+                    if kind == "transfer" {
+                        guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
+                        nav.openAdd(AddRequest(kind: .transfer, duplicateOf: t.id))
+                    } else if (kind == "income") != (t.amount > 0) {
+                        save(["amount": .number(Double(-t.amount))], touchesReconciled: true)
+                    }
+                }),
+                small: true
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(minHeight: theme.dims.settingsRow)
+    }
+
+    @ViewBuilder
+    private func tagsCard(_ t: Model.Transaction) -> some View {
+        let c = theme.colors
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L.tx_tags()).kFont(.small).foregroundStyle(c.ink3)
+                FlowLayout(spacing: 6) {
+                    ForEach(t.tags, id: \.self) { tag in
+                        Chip("#\(tag)", small: true) { nav.push(.tagView(tag: tag, eventId: nil)) }
+                            .accessibilityLabel(L.tx_tag_link(tag: tag))
+                    }
+                    Chip(L.tx_add_tags(), soft: true, small: true) { edit(.tags) } leading: { PhIcon("plus", size: 14) }
+                }
+                Hairline()
+                Button { edit(.note) } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L.tx_note()).kFont(.small).foregroundStyle(c.ink3)
+                        Text(t.note.isEmpty ? L.tx_note_placeholder() : t.note).foregroundStyle(t.note.isEmpty ? c.ink3 : c.ink)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle())
+                Hairline()
+                let event = kosha.meta?.events.first { $0.id == t.eventId }
+                HStack {
+                    Text(L.tx_event()).kFont(.small).foregroundStyle(c.ink3)
+                    Spacer()
+                    Chip(event?.name ?? L.tx_add_to_event(), soft: true, small: true) {
+                        if let event, !kosha.canWrite { nav.push(.tagView(tag: nil, eventId: event.id)) } else { edit(.event) }
+                    } leading: { PhIcon("calendar-star", size: 14) }
+                    if let event {
+                        IconButton("arrow-right", label: L.app_act_event_all_dates()) {
+                            nav.push(.tagView(tag: nil, eventId: event.id))
+                        }
+                    }
                 }
             }
         }
