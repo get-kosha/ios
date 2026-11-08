@@ -35,7 +35,7 @@ struct AccountDetailScreen: View {
         let today = kosha.today
         if let w = kosha.wallet(id) {
             let flow = overview.value?.accounts[id]
-            Page(w.name, subtitle: subtitle(w)) {
+            Page(w.name, subtitle: subtitle(w), leading: AnyView(AccountDot(theme.colors.account(kosha.colorIndex(w.id)), size: 12))) {
                 KButton(L.common_edit(), style: .secondary, size: .small) { nav.push(.accountForm(id: id)) }
             } content: {
                 Card {
@@ -227,7 +227,7 @@ struct InvestmentDetailScreen: View {
         if let w = kosha.wallet(id) {
             let (age, stale) = valueAge(w, today: today, theme.locale)
             let gain = w.gain ?? 0
-            Page(w.name, subtitle: subtitle(w)) {
+            Page(w.name, subtitle: subtitle(w), leading: AnyView(AccountDot(theme.colors.account(kosha.colorIndex(w.id)), size: 12))) {
                 KButton(L.common_edit(), style: .secondary, size: .small) { nav.push(.accountForm(id: id)) }
             } content: {
                 Card {

@@ -223,14 +223,21 @@ public struct Page<Content: View, Actions: View, Footer: View>: View {
     let actions: Actions
     let footer: Footer
     let content: Content
+    /// Drawn before the title, such as an account's colour square.
+    let leading: AnyView?
+    /// Drawn right after the title, such as the AI page's Beta pill.
+    let badge: AnyView?
     @Environment(\.kosha) private var theme
     @Environment(\.dismiss) private var dismiss
 
     public init(
-        _ title: String, subtitle: String? = nil, scroll: Bool = true, @ViewBuilder actions: () -> Actions = { EmptyView() },
+        _ title: String, subtitle: String? = nil, scroll: Bool = true, leading: AnyView? = nil, badge: AnyView? = nil,
+        @ViewBuilder actions: () -> Actions = { EmptyView() },
         @ViewBuilder footer: () -> Footer = { EmptyView() }, @ViewBuilder content: () -> Content
     ) {
         self.title = title
+        self.leading = leading
+        self.badge = badge
         self.subtitle = subtitle
         self.scroll = scroll
         self.actions = actions()
@@ -244,7 +251,11 @@ public struct Page<Content: View, Actions: View, Footer: View>: View {
             HStack(spacing: 4) {
                 IconButton("caret-left", label: L.common_back()) { dismiss() }
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(title).kFont(.title).lineLimit(2).accessibilityAddTraits(.isHeader)
+                    HStack(spacing: 8) {
+                        if let leading { leading }
+                        Text(title).kFont(.title).lineLimit(2).accessibilityAddTraits(.isHeader)
+                        if let badge { badge }
+                    }
                     if let subtitle { Text(subtitle).kFont(.xs).foregroundStyle(c.ink3) }
                 }
                 .padding(.horizontal, 4)

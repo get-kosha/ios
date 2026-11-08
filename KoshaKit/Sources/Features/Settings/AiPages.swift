@@ -96,7 +96,7 @@ struct AiSettingsPage: View {
         let w = Writer(kosha: kosha, toasts: toasts)
         let on = m.prefOf("ai_enabled") == "1"
         let connected = (providers ?? []).filter(\.connected).sorted { $0.isDefault && !$1.isDefault }
-        Page(L.settings_section_ai(), actions: { Pill(L.settings_badge_beta()).padding(.trailing, 12) }) {
+        Page(L.settings_section_ai(), badge: AnyView(Pill(L.settings_badge_beta()))) {
             Text(L.app_set_ai_intro()).kFont(.small).foregroundStyle(c.ink3)
             Rows {
                 SettingsSwitchRow(L.settings_ai_enabled_title(), description: L.settings_ai_enabled_description(),
