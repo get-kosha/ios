@@ -276,11 +276,12 @@ private struct ReconcileStart: View {
         let quick = d.reconciled + upToToday.reduce(0) { $0 + $1.amount }
         Card {
             Text(L.app_rcn_quick_title()).kFont(.head)
-            Text(acc.credit ? L.reconcile_quick_owed(amount: money(fromKosha(quick), acc.currency))
-                 : L.reconcile_quick_balance(amount: money(fromKosha(quick), acc.currency)))
-                .kFont(.small).foregroundStyle(c.ink2)
+            // The amount reads in the figure font, as the message's {#amount} markup asks.
+            let amount = markMoney(money(fromKosha(quick), acc.currency))
+            sentence(acc.credit ? L.reconcile_quick_owed(amount: amount) : L.reconcile_quick_balance(amount: amount), theme)
+                .foregroundStyle(c.ink2)
             HStack(spacing: 8) {
-                KButton(L.reconcile_same_as_bank(), style: .secondary, size: .medium) {
+                CompactButton(title: L.reconcile_same_as_bank()) {
                     Task {
                         model.busy = "finish"
                         let body = FinishBody(walletId: acc.id, statementDay: today, balance: quick, ids: upToToday.map(\.id), adjust: false)
@@ -294,8 +295,8 @@ private struct ReconcileStart: View {
                     }
                 }
                 .disabled(model.busy != nil || !kosha.canWrite)
-                KButton(L.accounts_fix_balance(), style: .secondary, size: .medium) { nav.push(.fixBalance(id: acc.id)) }
-                    .fixedSize()
+                CompactButton(title: L.accounts_fix_balance()) { nav.push(.fixBalance(id: acc.id)) }
+                    .frame(width: 112)
             }
         }
         Card {
@@ -307,7 +308,8 @@ private struct ReconcileStart: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(balanceLabel(acc)).kFont(.small).foregroundStyle(c.ink3).lineLimit(1)
-                    StatementPickField(value: money(model.balance ?? fromKosha(quick), acc.currency), muted: model.balance == nil, mono: true) {
+                    StatementPickField(value: theme.hideAmounts ? "••••" : bareAmount(model.balance ?? fromKosha(quick), acc.currency, theme.locale),
+                                       muted: model.balance == nil, mono: true) {
                         sheet = .balance
                     }
                 }
@@ -528,7 +530,7 @@ private struct ReconcileTick: View {
         let fromKosha = { (v: Int64) in a.credit ? limit - v : v }
         let last = t.d.history.first
         let st = model.statement
-        let hints = t.hints(fmt)
+        let hints = t.hints { markMoney(fmt($0)) }
         let canAskAi = t.m.aiFlags.statements && t.m.pref("ai_share_payee", "1") == "1" && t.m.pref("ai_share_amount", "1") == "1"
         // Reconciled entries should still add up to the last statement, unless one was changed since.
         let drift = last.map { t.d.reconciled - $0.balance } ?? 0
@@ -660,7 +662,7 @@ private struct ReconcileTick: View {
         let c = theme.colors
         return HStack(alignment: .top, spacing: 8) {
             if let icon { PhIcon(icon, size: 16, color: c.ink3).padding(.top, 2) }
-            Text(text).kFont(.small).frame(maxWidth: .infinity, alignment: .leading)
+            sentence(text, theme).frame(maxWidth: .infinity, alignment: .leading)
             if !ids.isEmpty {
                 Button(L.reconcile_show()) { show(ids, t) }.kFont(.small).foregroundStyle(c.ink2)
                     .frame(minHeight: 44).buttonStyle(PressStyle())

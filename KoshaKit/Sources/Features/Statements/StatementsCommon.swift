@@ -505,3 +505,53 @@ struct Columns: View {
         }
     }
 }
+
+/// Marks an amount inside a sentence (between Unicode isolates), so `sentence` draws it in the figure font.
+func markMoney(_ text: String) -> String { "\u{2068}\(text)\u{2069}" }
+
+/// A small-type sentence whose marked amounts read in the figure font, as the design's `.num` spans do.
+func sentence(_ text: String, _ theme: KTheme) -> Text {
+    var out = Text("")
+    var rest = Substring(text)
+    while let open = rest.firstIndex(of: "\u{2068}") {
+        out = out + Text(rest[..<open])
+        let after = rest[rest.index(after: open)...]
+        let close = after.firstIndex(of: "\u{2069}") ?? after.endIndex
+        out = out + Text(after[..<close]).font(KFont.figure(13, .regular).font(theme))
+        rest = close < after.endIndex ? after[after.index(after: close)...] : ""
+    }
+    return (out + Text(rest)).font(KFont.small.font(theme))
+}
+
+/// An amount without its currency, for a field whose label names the currency ("Closing balance (EUR)": 1,868.45).
+func bareAmount(_ minor: Int64, _ currency: String, _ locale: Locale) -> String {
+    let f = NumberFormatter()
+    f.numberStyle = .decimal
+    f.locale = locale
+    f.minimumFractionDigits = Money.decimals(currency)
+    f.maximumFractionDigits = Money.decimals(currency)
+    let text = f.string(from: (Decimal(minor.magnitude) / 100) as NSDecimalNumber) ?? ""
+    return minor < 0 ? Money.minus + text : text
+}
+
+/// The design's `.btn.md.sec` side by side: no side padding of its own, so two fit a row on one line.
+struct CompactButton: View {
+    let title: String
+    let action: () -> Void
+    @Environment(\.kosha) private var theme
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        let c = theme.colors
+        Button(action: action) {
+            Text(title).kFont(.sans(15, .medium)).foregroundStyle(c.ink).lineLimit(1).minimumScaleFactor(0.8)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(c.surface, in: .rect(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(c.line))
+                .contentShape(.rect(cornerRadius: 12))
+        }
+        .buttonStyle(PressStyle())
+        .opacity(enabled ? 1 : 0.4)
+    }
+}
