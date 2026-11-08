@@ -11,6 +11,7 @@ struct GeneralPage: View {
     @Environment(Kosha.self) private var kosha
     @Environment(Toasts.self) private var toasts
     @Environment(\.kosha) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var sheet: Pick?
 
     enum Pick: String, Identifiable {
@@ -27,11 +28,11 @@ struct GeneralPage: View {
         Page(L.settings_section_general()) {
             GroupCaption(L.settings_general_region())
             Rows {
-                NavRow(L.settings_row_language(), description: L.settings_general_language_desc(), value: languageName(language)) {
+                NavRow(L.settings_row_language(), description: L.settings_row_language_desc(), value: languageName(language)) {
                     sheet = .language
                 }
                 Hairline()
-                NavRow(L.settings_row_time_zone(), description: L.settings_general_time_zone_desc(), value: zoneCity(kosha.tz)) {
+                NavRow(L.settings_row_time_zone(), description: L.settings_row_time_zone_desc(), value: zoneCity(kosha.tz)) {
                     sheet = .zone
                 }
             }
@@ -48,11 +49,25 @@ struct GeneralPage: View {
                     sheet = .wallet
                 }
                 Hairline()
-                VStack(alignment: .leading, spacing: 8) {
+                // The choice sits beside its title, as on the board; at large text sizes it moves under it.
+                let addKind = Segmented([("expense", L.settings_general_expense()), ("income", L.settings_general_income())],
+                                        selection: Binding(get: { m.prefOf("add_kind") }, set: { w.pref("add_kind", $0) }), small: true)
+                let label = VStack(alignment: .leading, spacing: 2) {
                     Text(L.settings_row_add_kind()).kFont(.head)
                     Text(L.settings_general_add_kind_desc()).kFont(.small).foregroundStyle(theme.colors.ink3)
-                    Segmented([("expense", L.settings_general_expense()), ("income", L.settings_general_income())],
-                              selection: Binding(get: { m.prefOf("add_kind") }, set: { w.pref("add_kind", $0) }), small: true)
+                }
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 8) {
+                            label
+                            addKind
+                        }
+                    } else {
+                        HStack(spacing: 12) {
+                            label.frame(maxWidth: .infinity, alignment: .leading)
+                            addKind.frame(width: 172)
+                        }
+                    }
                 }
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 Hairline()
@@ -142,7 +157,7 @@ struct AppearancePage: View {
             Card {
                 VStack(alignment: .leading, spacing: 16) {
                     ChoiceRow(title: L.settings_row_number_font(), description: L.settings_appearance_figures_desc(),
-                              options: [("mono", L.settings_appearance_mono()), ("proportional", L.settings_appearance_proportional())],
+                              options: [("mono", "1.23 " + L.settings_appearance_mono()), ("proportional", "1.23 " + L.settings_appearance_proportional())],
                               selection: pick("figures"))
                     InlineSwitch(title: L.settings_row_hide_amounts(), description: L.app_set_hide_desc(),
                                  isOn: prefBinding(kosha, w, "hide_amounts"))
@@ -178,6 +193,8 @@ private struct AccentPicker: View {
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
+        // The first swatch's ring lines up with the text above; its 48pt touch target reaches past it.
+        .padding(.leading, -9)
     }
 
     private func accentName(_ a: Accent) -> String {

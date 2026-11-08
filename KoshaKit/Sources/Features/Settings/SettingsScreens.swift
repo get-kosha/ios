@@ -199,6 +199,14 @@ struct SettingsList: View {
         .load("api-access", into: $access) { try await $0.get("/api/app/api-access") }
     }
 
+    /// "updated today", "updated yesterday" or "updated 3 Nov", from the rates' unix seconds in the user's time zone.
+    private func ratesUpdated(_ seconds: Int64) -> String {
+        let day = Dates.today(kosha.tz, now: Date(timeIntervalSince1970: TimeInterval(seconds)))
+        if day == kosha.today { return L.accounts_rates_updated_today() }
+        if day == kosha.today.adding(days: -1) { return L.accounts_rates_updated_yesterday() }
+        return L.accounts_rates_updated_on(date: DayFormat.dayMonth(day, theme.locale))
+    }
+
     private var version: (String, String) {
         let info = Bundle.main.infoDictionary
         return (info?["CFBundleShortVersionString"] as? String ?? "", info?["CFBundleVersion"] as? String ?? "")
@@ -236,8 +244,12 @@ struct SettingsList: View {
         case "general": L.app_set_general_desc()
         case "appearance": L.app_set_appearance_desc()
         case "currencies":
-            m.map { currencyOrder(primary: $0.primaryCurrency, order: $0.order, used: $0.wallets.filter { !$0.isArchived }.map(\.currency)) }?
-                .map { $0.uppercased() }.joined(separator: " · ")
+            m.map { m in
+                // "EUR, INR, USD · updated today", as the board writes it.
+                let codes = currencyOrder(primary: m.primaryCurrency, order: m.order, used: m.wallets.filter { !$0.isArchived }.map(\.currency))
+                    .map { $0.uppercased() }.joined(separator: ", ")
+                return m.ratesUpdated > 0 ? codes + " · " + ratesUpdated(m.ratesUpdated) : codes
+            }
         case "categories": L.app_set_categories_desc()
         case "events": L.app_set_events_desc()
         case "rules":

@@ -50,7 +50,8 @@ struct ProfilePage: View {
                         }
                     }
                     Text(L.settings_profile_avatar_hint() + (m?.avatars == true ? " " + L.settings_profile_photo_desc() : ""))
-                        .kFont(.xs).foregroundStyle(c.ink3).multilineTextAlignment(.center)
+                        .kFont(.xs).foregroundStyle(c.ink3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
@@ -164,6 +165,23 @@ struct SecurityPage: View {
 
     private var canLock: Bool { LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) }
 
+    /// "Unlock with Face ID", "… Touch ID", or with the passcode on a device without either.
+    private var unlockTitle: String {
+        switch AppLock.biometry {
+        case .faceID: L.app_ios_set_unlock_face_id()
+        case .touchID: L.app_ios_set_unlock_touch_id()
+        default: L.app_ios_set_unlock_passcode()
+        }
+    }
+
+    private var unlockIcon: String {
+        switch AppLock.biometry {
+        case .faceID: "scan-smiley"
+        case .touchID: "fingerprint"
+        default: "lock-simple"
+        }
+    }
+
     private func web(_ anchor: String) {
         if let url = URL(string: (kosha.server ?? defaultServer) + "/settings/security#\(anchor)") { nav.openWeb?(url) }
     }
@@ -191,10 +209,25 @@ struct SecurityPage: View {
                             if i > 0 { Hairline() }
                             // Backup codes come with two-factor, and two-factor protects a password, so those wait.
                             let can = !ok && (key != "codes" || a.twoFactor) && (key != "two-factor" || a.hasPassword)
-                            SRow(stepLabel(key)) {
-                                if can { KButton(stepAction(key), style: .secondary, size: .small, icon: "arrow-square-out") { web("checklist") } }
-                                else if ok { PhIcon("check-circle", size: 18, color: c.pos) }
+                            HStack(spacing: 12) {
+                                Group {
+                                    if ok {
+                                        PhIcon("check-circle", size: 20, color: c.pos)
+                                    } else {
+                                        Circle().strokeBorder(c.line, lineWidth: 1.5).frame(width: 22, height: 22)
+                                    }
+                                }
+                                .frame(width: 22)
+                                Text(stepLabel(key)).frame(maxWidth: .infinity, alignment: .leading)
+                                if can {
+                                    // The external-link icon follows the words, as on the board.
+                                    KButton(stepAction(key), style: .secondary, size: .small, icon: "arrow-square-out") { web("checklist") }
+                                        .environment(\.layoutDirection, .rightToLeft)
+                                }
                             }
+                            .padding(.horizontal, 16).padding(.vertical, 10).frame(minHeight: theme.dims.settingsRow)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityAddTraits(ok ? .isSelected : [])
                         }
                     }
                 }
@@ -202,8 +235,8 @@ struct SecurityPage: View {
 
             GroupCaption(L.app_set_on_phone())
             Rows {
-                SettingsSwitchRow(L.app_set_unlock(), description: canLock ? L.app_set_unlock_desc() : L.app_set_unlock_unavailable(),
-                          isOn: Binding(get: { lock }, set: setLock), enabled: canLock || lock)
+                SettingsSwitchRow(unlockTitle, description: canLock ? L.app_ios_set_unlock_desc() : L.app_ios_set_unlock_unavailable(),
+                          isOn: Binding(get: { lock }, set: setLock), enabled: canLock || lock, icon: unlockIcon)
                 if lock {
                     Hairline()
                     VStack(alignment: .leading, spacing: 10) {
@@ -262,7 +295,7 @@ struct SecurityPage: View {
             return
         }
         Task {
-            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L.app_set_unlock())) == true
+            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: unlockTitle)) == true
             if ok {
                 lock = true
                 kosha.local.lock = true

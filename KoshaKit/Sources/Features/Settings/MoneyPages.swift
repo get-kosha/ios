@@ -59,7 +59,7 @@ struct CurrenciesPage: View {
                         if list.count > 1 {
                             PhIcon("dots-six-vertical", size: 18, color: c.ink3, label: L.settings_currencies_reorder(code: code.uppercased()))
                         }
-                        Text(code.uppercased()).kFont(.figure(15, .medium)).frame(width: 44, alignment: .leading)
+                        Text(code.uppercased()).kFont(.figure(15, .regular)).frame(width: 44, alignment: .leading)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(currencyName(code, theme.locale)).kFont(.head)
                             let detail = [accounts > 0 ? L.accounts_count(count: accounts) : nil,
@@ -417,11 +417,16 @@ struct CategoryEditPage: View {
                 Rows {
                     ForEach(children.indices, id: \.self) { i in
                         if i > 0 { Hairline() }
-                        SRow(children[i].name, icon: categoryIconName(children[i].icon), action: {
-                            nav.push(.settings(page: "category", id: children[i].id))
-                        }) {
-                            Text("\(children[i].transactionCount)").kFont(.xs).foregroundStyle(c.ink3)
+                        Button { nav.push(.settings(page: "category", id: children[i].id)) } label: {
+                            HStack(spacing: 12) {
+                                PhIcon(categoryIconName(children[i].icon), size: 18, color: c.ink2)
+                                Text(children[i].name).frame(maxWidth: .infinity, alignment: .leading)
+                                Text("\(children[i].transactionCount)").kFont(.figure(12, .regular)).foregroundStyle(c.ink3)
+                            }
+                            .padding(.horizontal, 16).frame(minHeight: theme.dims.row)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(PressStyle())
                     }
                 }
             }

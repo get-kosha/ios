@@ -2132,6 +2132,11 @@ extension L {
     public static func app_shortcut_add_income(app: String) -> String { L.text("app_shortcut_add_income", ["app": app]) }
     public static func app_shortcut_scan(app: String) -> String { L.text("app_shortcut_scan", ["app": app]) }
     public static func app_ios_ov_go() -> String { L.text("app_ios_ov_go", [:]) }
+    public static func app_ios_set_unlock_face_id() -> String { L.text("app_ios_set_unlock_face_id", [:]) }
+    public static func app_ios_set_unlock_touch_id() -> String { L.text("app_ios_set_unlock_touch_id", [:]) }
+    public static func app_ios_set_unlock_passcode() -> String { L.text("app_ios_set_unlock_passcode", [:]) }
+    public static func app_ios_set_unlock_desc() -> String { L.text("app_ios_set_unlock_desc", [:]) }
+    public static func app_ios_set_unlock_unavailable() -> String { L.text("app_ios_set_unlock_unavailable", [:]) }
     public static func app_rec_asks_each_time() -> String { L.text("app_rec_asks_each_time", [:]) }
     public static func app_rec_asks_that_day() -> String { L.text("app_rec_asks_that_day", [:]) }
     public static func app_rec_attach_bill() -> String { L.text("app_rec_attach_bill", [:]) }

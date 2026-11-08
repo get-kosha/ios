@@ -165,7 +165,15 @@ struct ApiMcpPage: View {
             }
 
             GroupCaption(L.settings_api_keys()) {
-                KButton(L.settings_api_new_key(), style: .soft, size: .small, icon: "plus") { if !w.refused() { creating = true } }
+                Button { if !w.refused() { creating = true } } label: {
+                    HStack(spacing: 6) {
+                        PhIcon("plus", size: 16, color: c.ink2)
+                        Text(L.settings_api_new_key()).kFont(.small).foregroundStyle(c.ink2)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle())
             }
             let keys = access?.keys ?? []
             if access != nil && keys.isEmpty && made == nil { SettingsHint(L.settings_api_no_keys()) }

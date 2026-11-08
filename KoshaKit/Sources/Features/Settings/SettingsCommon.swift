@@ -388,8 +388,9 @@ struct SRow<Trailing: View, Extra: View>: View {
 
     init(
         _ title: String, description: String? = nil, icon: String? = nil, descriptionColor: Color? = nil,
-        action: (() -> Void)? = nil, @ViewBuilder titleExtra: () -> Extra = { EmptyView() },
-        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+        // `trailing` comes before `titleExtra`, so `SRow(...) { button }` puts the button on the right.
+        action: (() -> Void)? = nil, @ViewBuilder trailing: () -> Trailing = { EmptyView() },
+        @ViewBuilder titleExtra: () -> Extra = { EmptyView() }
     ) {
         self.title = title
         self.description = description
@@ -454,11 +455,11 @@ struct NavRow<Extra: View>: View {
     }
 
     var body: some View {
-        SRow(title, description: description, icon: icon, action: action, titleExtra: { titleExtra }) {
+        SRow(title, description: description, icon: icon, action: action, trailing: {
             if let value { Text(value).kFont(.small).foregroundStyle(theme.colors.ink2).lineLimit(1) }
             if badge > 0 { CountBadge(badge) }
             PhIcon(external ? "arrow-square-out" : "caret-right", size: 16, color: theme.colors.ink3)
-        }
+        }, titleExtra: { titleExtra })
     }
 }
 
@@ -468,20 +469,23 @@ struct SettingsSwitchRow<Extra: View>: View {
     let description: String?
     @Binding var isOn: Bool
     let enabled: Bool
+    let icon: String?
     let extra: Extra
     @Environment(\.kosha) private var theme
 
-    init(_ title: String, description: String?, isOn: Binding<Bool>, enabled: Bool = true,
+    init(_ title: String, description: String?, isOn: Binding<Bool>, enabled: Bool = true, icon: String? = nil,
          @ViewBuilder extra: () -> Extra = { EmptyView() }) {
         self.title = title
         self.description = description
         _isOn = isOn
         self.enabled = enabled
+        self.icon = icon
         self.extra = extra()
     }
 
     var body: some View {
         HStack(spacing: 12) {
+            if let icon { IconTile(icon) }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).kFont(.head)
                 if let description { Text(description).kFont(.small).foregroundStyle(theme.colors.ink3) }
