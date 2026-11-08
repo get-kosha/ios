@@ -71,13 +71,15 @@ public final class KoshaAPI: Sendable {
         return try KoshaJSON.decode(T.self, data)
     }
 
-    private func json(_ value: any Encodable) -> (Data, String) {
-        ((try? KoshaJSON.encode(value)) ?? Data("{}".utf8), "application/json")
+    private func json(_ value: any Encodable) throws -> (Data, String) {
+        (try KoshaJSON.encode(value), "application/json")
     }
 
     public func call(_ method: String, _ path: String, query: [String: String?] = [:], body: (Data, String)?) async throws -> Data {
+        let sessionID = store.sessionID
         guard var tokens = store.read() else { throw KoshaError.signedOut }
         for attempt in 0..<2 {
+            guard store.sessionID == sessionID else { throw KoshaError.signedOut }
             guard var c = URLComponents(string: tokens.server + path) else { throw KoshaError.signedOut }
             let items = query.compactMap { k, v in v.map { URLQueryItem(name: k, value: $0) } }
             if !items.isEmpty { c.queryItems = (c.queryItems ?? []) + items.sorted { $0.name < $1.name } }
@@ -98,6 +100,8 @@ public final class KoshaAPI: Sendable {
             do { (data, res) = try await session.data(for: req) } catch let e as URLError where e.code != .cancelled {
                 throw KoshaError.offline
             }
+            // A request from a previous sign-in must never replay into, or clear, the next account's session.
+            guard store.sessionID == sessionID else { throw KoshaError.signedOut }
             let status = (res as? HTTPURLResponse)?.statusCode ?? 0
             if status == 401 && attempt == 0 {
                 // A refused refresh ends the session (Auth has cleared it): the app shows sign-in.
@@ -110,7 +114,7 @@ public final class KoshaAPI: Sendable {
                 continue
             }
             if status == 401 {
-                store.clear()
+                if store.read() == tokens { store.clear() }
                 throw KoshaError.signedOut
             }
             guard (200..<300).contains(status) else {

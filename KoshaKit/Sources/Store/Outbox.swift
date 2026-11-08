@@ -38,6 +38,8 @@ public actor Outbox {
     private let api: KoshaAPI
     public private(set) var items: [Queued]
     private let onChange: @Sendable ([Queued]) -> Void
+    private var sending = false
+    private var generation = 0
 
     public init(api: KoshaAPI, file: URL? = nil, onChange: @escaping @Sendable ([Queued]) -> Void) {
         let url = file ?? Cache.container.appendingPathComponent("outbox.json")
@@ -64,13 +66,21 @@ public actor Outbox {
     /// Sends what's waiting. Returns how many were sent and the server's message for each one it refused for good;
     /// stops at the first sign of no connection, or when the server is busy or failing.
     public func send() async -> (sent: Int, rejected: [String]) {
+        guard !sending else { return (0, []) }
+        sending = true
+        defer { sending = false }
+        let generation = self.generation
         var sent = 0
         var rejected: [String] = []
         for item in items {
+            guard generation == self.generation else { return (sent, rejected) }
+            guard items.contains(where: { $0.id == item.id }) else { continue }
             do {
                 try await api.send("POST", "/api/v1/transactions", body: createTransactions(item.entry, noEvent: item.noEvent))
+                guard generation == self.generation else { return (sent, rejected) }
                 sent += 1
             } catch let e as KoshaError {
+                guard generation == self.generation else { return (sent, rejected) }
                 // Offline, busy or failing: keep it for the next try; its id makes a repeat save once.
                 if e.retryable { return (sent, rejected) }
                 if case .signedOut = e { return (sent, rejected) }
@@ -79,10 +89,18 @@ public actor Outbox {
                 if case .api(409, _) = e {
                     do {
                         _ = try await api.bytes("/api/app/transactions/\(item.entry.id)")
+                        guard generation == self.generation else { return (sent, rejected) }
                         sent += 1
+                    } catch KoshaError.signedOut {
+                        return (sent, rejected)
                     } catch let e2 as KoshaError where e2.retryable {
                         return (sent, rejected)
+                    } catch is CancellationError {
+                        return (sent, rejected)
+                    } catch let error as URLError where error.code == .cancelled {
+                        return (sent, rejected)
                     } catch {
+                        guard generation == self.generation else { return (sent, rejected) }
                         rejected.append(e.errorDescription ?? "")
                     }
                 } else {
@@ -92,12 +110,14 @@ public actor Outbox {
             } catch {
                 return (sent, rejected)
             }
+            guard generation == self.generation else { return (sent, rejected) }
             save(items.filter { $0.id != item.id })
         }
         return (sent, rejected)
     }
 
     public func clear() {
+        generation += 1
         try? FileManager.default.removeItem(at: file)
         items = []
         onChange([])

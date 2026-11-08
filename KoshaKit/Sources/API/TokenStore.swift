@@ -24,15 +24,26 @@ public struct Tokens: Codable, Sendable, Equatable {
 /// Keeps the session in the Keychain, readable after the first unlock and never leaving this device (not in backups),
 /// so a restored phone signs in again. The access group lets the widget read it.
 public final class TokenStore: @unchecked Sendable {
-    private let service = "app.getkosha.session"
+    private let service: String
     private let account = "tokens"
     private let accessGroup: String?
     private let lock = NSLock()
     private var cached: Tokens?
     private var loaded = false
+    private var generation = UUID()
+
+    var sessionID: UUID { lock.withLock { generation } }
 
     /// `accessGroup` is "<team>.app.getkosha", shared by the app and its widget; nil uses the app's default group.
-    public init(accessGroup: String? = nil) { self.accessGroup = accessGroup }
+    public init(accessGroup: String? = nil) {
+        self.service = "app.getkosha.session"
+        self.accessGroup = accessGroup
+    }
+
+    init(service: String) {
+        self.service = service
+        self.accessGroup = nil
+    }
 
     private var query: [String: Any] {
         var q: [String: Any] = [
@@ -52,25 +63,34 @@ public final class TokenStore: @unchecked Sendable {
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         var out: CFTypeRef?
-        if SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data {
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        if status == errSecSuccess, let data = out as? Data {
             cached = try? KoshaJSON.decode(Tokens.self, data)
         }
-        loaded = true
+        // A locked Keychain is temporary; try reading again after the device unlocks.
+        loaded = status == errSecSuccess || status == errSecItemNotFound
         return cached
     }
 
     /// Stores the new tokens before anyone uses them, so a rotated refresh token is never lost.
     public func write(_ tokens: Tokens) {
+        try? save(tokens)
+    }
+
+    func save(_ tokens: Tokens, rotating: Bool = false) throws {
         lock.lock()
         defer { lock.unlock() }
-        guard let data = try? KoshaJSON.encode(tokens) else { return }
+        let data = try KoshaJSON.encode(tokens)
         let attrs: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
-        if SecItemUpdate(query as CFDictionary, attrs as CFDictionary) == errSecItemNotFound {
-            SecItemAdd(query.merging(attrs) { $1 } as CFDictionary, nil)
+        var status = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+        if status == errSecItemNotFound {
+            status = SecItemAdd(query.merging(attrs) { $1 } as CFDictionary, nil)
         }
+        guard status == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(status)) }
+        if !rotating { generation = UUID() }
         cached = tokens
         loaded = true
     }
@@ -79,6 +99,7 @@ public final class TokenStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         SecItemDelete(query as CFDictionary)
+        generation = UUID()
         cached = nil
         loaded = true
     }

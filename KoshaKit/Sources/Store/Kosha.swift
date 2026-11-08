@@ -3,6 +3,7 @@ import Network
 import Observation
 import Model
 import API
+import os
 
 /// A read for a screen: what this phone saved, then what the server says.
 public struct Loaded<T: Sendable>: Sendable {
@@ -56,31 +57,46 @@ public final class Kosha {
     /// Called after the widget's snapshot changes; the app reloads the widget's timelines there.
     @ObservationIgnored public var widgetChanged: (() -> Void)?
     @ObservationIgnored private let monitor = NWPathMonitor()
+    private(set) var sessionVersion = UUID()
 
     /// The language for requests: the `language` setting, else the phone's. Set by the app.
-    nonisolated(unsafe) public static var requestLanguage = "en"
+    nonisolated private static let language = OSAllocatedUnfairLock(initialState: "en")
+    nonisolated public static var requestLanguage: String {
+        get { language.withLock { $0 } }
+        set { language.withLock { $0 = newValue } }
+    }
 
-    public init(accessGroup: String? = nil) {
+    public convenience init(accessGroup: String? = nil) {
         let tokens = TokenStore(accessGroup: accessGroup)
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 90 // AI replies and statement reads take a while
         config.waitsForConnectivity = false
         let session = URLSession(configuration: config)
+        self.init(tokens: tokens, session: session, cache: Cache(), local: LocalPrefs())
+    }
+
+    init(tokens: TokenStore, session: URLSession, cache: Cache, local: LocalPrefs) {
         // One Auth for sign-in and the API, so refreshes are serialised in one place.
         let auth = Auth(store: tokens, session: session)
         self.tokens = tokens
         self.auth = auth
         api = KoshaAPI(store: tokens, auth: auth, session: session) { Kosha.requestLanguage }
-        cache = Cache()
-        local = LocalPrefs()
-        signedIn = tokens.read() != nil
-        let saved: Meta? = cache.read("meta")
+        self.cache = cache
+        self.local = local
+        let hasSession = tokens.read() != nil
+        signedIn = hasSession
+        let saved: Meta? = hasSession ? cache.read("meta") : nil
         meta = saved
-        settings = cache.read("settings")
+        settings = hasSession ? cache.read("settings") : nil
         month = Dates.month(saved?.timeZone ?? TimeZone.current.identifier)
-        outbox = Outbox(api: api) { items in Task { @MainActor [weak self] in self?.waiting = items } }
+        outbox = Outbox(api: api, file: cache.dir.deletingLastPathComponent().appendingPathComponent("outbox.json")) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.waiting = await self.outbox.items
+            }
+        }
         Task { self.waiting = await self.outbox.items }
-        monitor.pathUpdateHandler = { path in
+        monitor.pathUpdateHandler = { [weak self] path in
             let up = path.status == .satisfied
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -92,6 +108,8 @@ public final class Kosha {
         monitor.start(queue: DispatchQueue(label: "app.getkosha.network"))
     }
 
+    deinit { monitor.cancel() }
+
     public var tz: String { meta?.timeZone ?? "UTC" }
     public var demo: Bool { meta?.demo ?? false }
     public var primary: String { meta?.primaryCurrency ?? "eur" }
@@ -102,23 +120,33 @@ public final class Kosha {
 
     /// After a sign-in: remember the session and load the account.
     public func didSignIn() {
+        guard tokens.read() != nil else { return }
+        sessionVersion = UUID()
         signedIn = true
         Task { await refresh() }
     }
 
     /// Fetches meta and settings again. Called on launch, on resume and after changes.
     public func refresh() async {
-        guard signedIn else { return }
+        // SignInFlow loads the account after exchanging tokens, before it reveals the signed-in shell.
+        guard tokens.read() != nil else {
+            if signedIn { await signedOutLocally() }
+            return
+        }
+        let version = sessionVersion
         do {
             let m: Meta = try await api.get("/api/app/meta")
+            guard version == sessionVersion else { return }
             cache.write("meta", m)
             if meta == nil { month = Dates.month(m.timeZone) }
             meta = m
             let s: Settings = try await api.get("/api/v1/settings")
+            guard version == sessionVersion else { return }
             cache.write("settings", s)
             settings = s
         } catch KoshaError.signedOut {
-            signedOutLocally()
+            guard version == sessionVersion else { return }
+            await signedOutLocally()
         } catch {
             // Offline or refused: keep what this phone saved.
         }
@@ -136,24 +164,31 @@ public final class Kosha {
     public func load<T: Codable & Sendable>(
         _ key: String, into update: @MainActor (Loaded<T>) -> Void, fetch: @Sendable (KoshaAPI) async throws -> T
     ) async {
+        guard signedIn else { update(Loaded(refreshing: false)); return }
+        let version = sessionVersion
         let saved: T? = cache.read(key)
         update(Loaded(value: saved, refreshing: true))
         do {
             let fresh = try await fetch(api)
+            guard version == sessionVersion else { return }
             cache.write(key, fresh)
             update(Loaded(value: fresh, refreshing: false))
         } catch KoshaError.signedOut {
-            signedOutLocally()
-            update(Loaded(value: saved, refreshing: false))
+            guard version == sessionVersion else { return }
+            await signedOutLocally()
+            update(Loaded(refreshing: false))
         } catch let e as KoshaError {
+            guard version == sessionVersion else { return }
             if case .api = e {
                 update(Loaded(value: saved, refreshing: false, error: e.errorDescription))
             } else {
                 update(Loaded(value: saved, refreshing: false, offline: true))
             }
         } catch is CancellationError {
+            guard version == sessionVersion else { return }
             update(Loaded(value: saved, refreshing: false))
         } catch {
+            guard version == sessionVersion else { return }
             // An answer this version can't read (a newer or older server): keep what was saved, and say so.
             update(Loaded(value: saved, refreshing: false, error: String(describing: error).prefix(200).description))
         }
@@ -161,25 +196,29 @@ public final class Kosha {
 
     /// Saves a synced preference (PATCH /api/app/preferences) and applies it at once.
     public func setPreference(_ key: String, _ value: String?) {
-        guard var m = meta else { return }
+        guard signedIn, !demo, var m = meta else { return }
+        let version = sessionVersion
         m.prefs[key] = value.map(JSONValue.string) ?? .null
         meta = m
         Task {
             try? await api.send("PATCH", "/api/app/preferences", body: JSONValue.object([key: value.map(JSONValue.string) ?? .null]))
+            guard version == sessionVersion else { return }
             changed()
         }
     }
 
     /// Sends the outbox now if there is a connection; otherwise asks the app to schedule a background send.
     public func sendOutbox() {
-        guard !waiting.isEmpty || signedIn else { return }
+        guard signedIn else { return }
+        let version = sessionVersion
         Task {
-            guard await !outbox.items.isEmpty else { return }
+            guard await !outbox.items.isEmpty, version == sessionVersion else { return }
             if !online {
                 scheduleSend?()
                 return
             }
             let (sent, refused) = await outbox.send()
+            guard version == sessionVersion else { return }
             if !refused.isEmpty { rejected += refused }
             if sent > 0 { changed() }
             if await !outbox.items.isEmpty { scheduleSend?() }
@@ -188,18 +227,24 @@ public final class Kosha {
 
     /// Signs out: revokes the refresh token, then clears what this phone saved and the outbox.
     public func signOut() async {
+        let version = sessionVersion
         await auth.signOut()
-        signedOutLocally()
+        guard version == sessionVersion else { return }
+        await signedOutLocally()
     }
 
-    private func signedOutLocally() {
+    private func signedOutLocally() async {
+        sessionVersion = UUID()
         tokens.clear()
         cache.clear()
         local.clear()
-        Task { await outbox.clear() }
+        waiting = []
+        rejected = []
         meta = nil
         settings = nil
         currency = nil
         signedIn = false
+        await outbox.clear()
+        widgetChanged?()
     }
 }
