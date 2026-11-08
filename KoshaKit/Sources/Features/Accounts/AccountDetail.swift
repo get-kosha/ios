@@ -39,12 +39,15 @@ struct AccountDetailScreen: View {
                 KButton(L.common_edit(), style: .secondary, size: .small) { nav.push(.accountForm(id: id)) }
             } content: {
                 Card {
-                    Text(w.kind == .credit ? L.accounts_currently_owed() : L.accounts_balance()).kFont(.small).foregroundStyle(c.ink3)
-                    HeroMoney(AccountsMath.shownWorth(w), w.currency)
-                    if w.kind == .credit && w.creditLimit != nil {
-                        Text(L.accounts_available(amount: inText(w.balance, w.currency, theme))).kFont(.xs).foregroundStyle(c.ink3)
-                    } else if let last = flow?.lastEntry {
-                        Text(L.accounts_last_entry(date: lastEntryText(last, today: today, theme.locale))).kFont(.xs).foregroundStyle(c.ink3)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(w.kind == .credit ? L.accounts_currently_owed() : L.accounts_balance()).kFont(.small).foregroundStyle(c.ink3)
+                        HeroMoney(AccountsMath.shownWorth(w), w.currency)
+                        if w.kind == .credit && w.creditLimit != nil {
+                            let available = inText(w.balance, w.currency, theme)
+                            Text(figured(L.accounts_available(amount: available), [available], size: 13, theme)).foregroundStyle(c.ink3)
+                        } else if let last = flow?.lastEntry {
+                            Text(L.accounts_last_entry(date: lastEntryText(last, today: today, theme.locale))).kFont(.small).foregroundStyle(c.ink3)
+                        }
                     }
                 }
                 if let flow {
@@ -92,9 +95,11 @@ struct AccountDetailScreen: View {
 
     private func flowCard(_ label: String, _ minor: Int64, _ currency: String, _ sign: Sign, _ color: Color) -> some View {
         Card {
-            Text(label).kFont(.xs).foregroundStyle(theme.colors.ink3).lineLimit(1)
-            MoneyText(minor, currency, sign: sign, color: minor == 0 ? theme.colors.ink3 : color)
-                .minimumScaleFactor(0.6)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label).kFont(.small).foregroundStyle(theme.colors.ink3).lineLimit(1)
+                MoneyText(minor, currency, sign: sign, color: minor == 0 ? theme.colors.ink3 : color)
+                    .minimumScaleFactor(0.6)
+            }
         }
     }
 }
@@ -118,20 +123,21 @@ private struct RecentCard: View {
             }
         } else {
             Card(tight: true) {
-                Text(L.accounts_recent()).kFont(.head).padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
-                    .accessibilityAddTraits(.isHeader)
+                HStack {
+                    Text(L.accounts_recent()).kFont(.head).accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    // Every entry of this account, in Activity.
+                    if w.txCount > recent.count {
+                        Button { nav.openActivity(ActivitySearch(accountId: w.id, type: transfersOnly ? "transfer" : nil)) } label: {
+                            Text(L.accounts_all_count(n: "\(w.txCount)")).kFont(.small).foregroundStyle(c.ink2).frame(minHeight: 44)
+                        }
+                        .buttonStyle(PressStyle())
+                    }
+                }
+                .padding(.horizontal, 16).padding(.top, 6)
                 ForEach(recent) { t in
                     Hairline()
                     row(t)
-                }
-                // Every entry of this account, in Activity.
-                if !transfersOnly && w.txCount > recent.count {
-                    Hairline()
-                    ListRow(action: { nav.openActivity(ActivitySearch(accountId: w.id)) }) {
-                        Text(L.accounts_all_count(n: "\(w.txCount)")).foregroundStyle(c.ink2)
-                        Spacer()
-                        PhIcon("caret-right", size: 16, color: c.ink3)
-                    }
                 }
             }
         }
@@ -173,7 +179,7 @@ private struct ArchiveRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            KButton(w.isArchived ? L.accounts_unarchive() : L.accounts_archive(), style: .secondary, size: .small, icon: "archive") {
+            KButton(w.isArchived ? L.accounts_unarchive() : L.accounts_archive(), style: .secondary, size: .medium, icon: "archive") {
                 let archived = !w.isArchived
                 let id = w.id
                 let toast = archived ? L.accounts_archived_toast(name: w.name) : L.accounts_restored_toast(name: w.name)
@@ -185,7 +191,7 @@ private struct ArchiveRow: View {
                 }
             }
             if w.txCount == 0 {
-                KButton(L.common_delete(), style: .danger, size: .small) { confirm = true }
+                KButton(L.common_delete(), style: .danger, size: .medium) { confirm = true }
             }
         }
         .disabled(!kosha.canWrite)
@@ -225,9 +231,17 @@ struct InvestmentDetailScreen: View {
                 KButton(L.common_edit(), style: .secondary, size: .small) { nav.push(.accountForm(id: id)) }
             } content: {
                 Card {
-                    Text(L.app_acc_value()).kFont(.small).foregroundStyle(c.ink3)
-                    HeroMoney(AccountsMath.worth(w), w.currency)
-                    Pill(age, color: stale ? c.warn : c.ink2)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(L.app_acc_value()).kFont(.small).foregroundStyle(c.ink3)
+                        HeroMoney(AccountsMath.worth(w), w.currency)
+                        HStack(spacing: 6) {
+                            PhIcon("clock", size: 14, color: stale ? c.warn : c.ink2)
+                            Text(age).kFont(.small).foregroundStyle(stale ? c.warn : c.ink2)
+                        }
+                        .padding(.horizontal, 10).frame(minHeight: 26)
+                        .background(c.soft, in: .capsule)
+                        .accessibilityElement(children: .combine)
+                    }
                     Hairline()
                     HStack {
                         Text(L.accounts_invested_so_far()).kFont(.small).foregroundStyle(c.ink3)
@@ -320,12 +334,15 @@ struct FixBalanceSheet: View {
             SheetHeader(L.accounts_fix_title(name: w.name), onClose: close).padding(.bottom, -8)
             Text(credit ? L.accounts_fix_credit_description() : L.accounts_fix_description())
                 .kFont(.body).foregroundStyle(c.ink2).frame(maxWidth: .infinity, alignment: .leading)
-            AmountDisplay(input: text, currency: w.currency, kind: .transfer,
-                          note: L.app_acc_kosha_shows(amount: inText(shown, w.currency, theme)))
+            AmountDisplay(input: text, currency: w.currency, kind: .transfer)
+            let showsText = inText(shown, w.currency, theme)
+            Text(figured(L.app_acc_kosha_shows(amount: showsText), [showsText], size: 13, theme)).foregroundStyle(c.ink3)
+                .padding(.top, -8)
             HStack(spacing: 8) {
                 PhIcon("scales", size: 16)
-                Text(correction != 0 ? L.accounts_fix_adds_correction(amount: inText(correction, w.currency, theme, sign: .always))
-                     : L.accounts_no_correction()).kFont(.small).foregroundStyle(c.ink2)
+                let corr = inText(correction, w.currency, theme, sign: .always)
+                Text(figured(correction != 0 ? L.accounts_fix_adds_correction(amount: corr) : L.accounts_no_correction(), [corr], size: 13, theme))
+                    .foregroundStyle(c.ink2)
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
             .frame(maxWidth: .infinity)

@@ -131,9 +131,10 @@ struct AccountsScreen: View {
             convert(Int64(AccountsMath.exchange($0.sent, fee: $0.fee, received: $0.received, marketRate: $0.marketRate).totalCost.rounded()),
                     from: $0.fromCurrency, to: display, perUsd: rates)
         }.reduce(0, +)
+        let costText = inText(cost, display, theme)
         return Card(tight: true) {
             LinkRow(icon: "arrows-left-right", title: L.accounts_fx_title(), detail: thisYear.isEmpty ? nil
-                : L.app_acc_fx_this_year(count: thisYear.count) + " · " + L.accounts_fx_cost(cost: inText(cost, display, theme))) {
+                : L.app_acc_fx_this_year(count: thisYear.count) + " · " + L.accounts_fx_cost(cost: costText), figures: [costText]) {
                 nav.push(.exchanges)
             }
             Hairline()
@@ -175,8 +176,9 @@ private struct Hero: View {
             if let prev {
                 let month = now - prev
                 HStack(spacing: 0) {
-                    Text(L.overview_worth_this_month(amount: inText(month, o.currency, theme, sign: .always)))
-                        .kFont(.small).foregroundStyle(month >= 0 ? c.pos : c.bad)
+                    let amount = inText(month, o.currency, theme, sign: .always)
+                    Text(figured(L.overview_worth_this_month(amount: amount), [amount], size: 13, theme))
+                        .foregroundStyle(month >= 0 ? c.pos : c.bad)
                     if let yearAgo, yearAgo != 0 {
                         let n = min(12, all.count - 1)
                         Text(" · " + percent(Double(now - yearAgo) / Double(yearAgo.magnitude), theme.locale, digits: 1) + " "
@@ -315,8 +317,9 @@ private struct RatesNote: View {
                 default: return L.accounts_rates_updated_on(date: fmtDay(day, "dMMMy", loc))
                 }
             }()
+            // In figures, as the web's `num` line.
             Text((parts + [updated].compactMap { $0 }).joined(separator: " · "))
-                .kFont(.xs).foregroundStyle(theme.colors.ink3).padding(.horizontal, 2)
+                .kFont(.figure(12, .regular)).foregroundStyle(theme.colors.ink3).padding(.horizontal, 2)
         }
     }
 }
@@ -335,14 +338,14 @@ struct BankRow: View {
         let foreign = w.currency != display
         let worth = AccountsMath.shownWorth(w)
         let last = overview?.accounts[w.id]?.lastEntry
-        let second: String? = foreign
-            ? "≈ " + inText(convert(AccountsMath.worth(w), from: w.currency, to: display, perUsd: kosha.meta?.rates ?? [:]), display, theme)
-            : last.map { L.accounts_last_entry(date: lastEntryText($0, today: today, theme.locale)) }
+        let approx = inText(convert(AccountsMath.worth(w), from: w.currency, to: display, perUsd: kosha.meta?.rates ?? [:]), display, theme)
+        let second: String? = foreign ? "≈ " + approx : last.map { L.accounts_last_entry(date: lastEntryText($0, today: today, theme.locale)) }
         ListRow(action: action) {
             AccountDot(c.account(kosha.colorIndex(w.id)), size: 10)
             VStack(alignment: .leading, spacing: 2) {
                 Text(w.name).foregroundStyle(w.isArchived ? c.ink2 : c.ink)
-                Text([accountTypeName(w.kind), second].compactMap { $0 }.joined(separator: " · ")).kFont(.xs).foregroundStyle(c.ink3)
+                Text(figured([accountTypeName(w.kind), second].compactMap { $0 }.joined(separator: " · "), foreign ? [approx] : [], size: 12, theme))
+                    .foregroundStyle(c.ink3)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 0) {
@@ -371,7 +374,8 @@ private struct CardRow: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(w.name)
                         if limit > 0 {
-                            Text(L.accounts_available(amount: inText(w.balance, w.currency, theme))).kFont(.xs).foregroundStyle(c.ink3)
+                            let available = inText(w.balance, w.currency, theme)
+                            Text(figured(L.accounts_available(amount: available), [available], size: 12, theme)).foregroundStyle(c.ink3)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -386,8 +390,9 @@ private struct CardRow: View {
                         }
                     }
                     .frame(height: 6)
-                    Text(L.app_acc_credit_used(percent: percent(used, theme.locale, signed: false), limit: inText(limit, w.currency, theme)))
-                        .kFont(.xs).foregroundStyle(c.ink3)
+                    let limitText = inText(limit, w.currency, theme)
+                    Text(figured(L.app_acc_credit_used(percent: percent(used, theme.locale, signed: false), limit: limitText), [limitText], size: 12, theme))
+                        .foregroundStyle(c.ink3)
                 }
             }
             .padding(.horizontal, 16)

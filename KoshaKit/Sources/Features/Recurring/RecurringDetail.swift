@@ -405,7 +405,8 @@ struct PaymentSheet: View {
             AccountPill(kosha.wallet(from)?.name ?? "", color: c.account(kosha.colorIndex(from)), open: panel == .accounts) {
                 panel = panel == .accounts ? .keypad : .accounts
             }
-            Text(L.app_rec_usually(amount: inText(Int64(s.amount.magnitude), s.currency, theme))).kFont(.small).foregroundStyle(c.ink2)
+            let usual = inText(Int64(s.amount.magnitude), s.currency, theme)
+            Text(figured(L.app_rec_usually(amount: usual), [usual], size: 13, theme)).foregroundStyle(c.ink2)
             HStack(spacing: 8) {
                 Chip(fmtDay(day, "EEEdMMM", theme.locale), on: panel == .calendar, action: {
                     panel = panel == .calendar ? .keypad : .calendar

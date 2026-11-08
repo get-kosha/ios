@@ -188,7 +188,7 @@ struct FormPage<Content: View, Footer: View>: View {
             .frame(minHeight: 56)
             TabBanners()
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) { content }.padding(16)
+                VStack(alignment: .leading, spacing: 16) { content }.padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 16)
             }
             footer.padding(16).background(c.glass)
         }
@@ -220,7 +220,7 @@ struct DetailRow<Content: View>: View {
         let row = HStack(spacing: 12) {
             Text(label).kFont(.small).foregroundStyle(c.ink3).frame(width: labelWidth, alignment: .leading)
             HStack(spacing: 8) { content }.frame(maxWidth: .infinity, alignment: .leading)
-            if let trailing { PhIcon(trailing, size: 16, color: c.ink3) }
+            if let trailing, !trailing.isEmpty { PhIcon(trailing, size: 16, color: c.ink3) }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -274,6 +274,8 @@ struct LinkRow: View {
     let detail: String?
     var count: String? = nil
     var tile = true
+    /// Amounts in `detail` to set in the figure font.
+    var figures: [String] = []
     let action: () -> Void
     @Environment(\.kosha) private var theme
 
@@ -283,7 +285,7 @@ struct LinkRow: View {
             if tile { IconTile(icon) } else { PhIcon(icon, size: 16) }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).kFont(tile ? .body : .small).foregroundStyle(tile ? c.ink : c.ink2)
-                if let detail { Text(detail).kFont(.small).foregroundStyle(c.ink3).money() }
+                if let detail { Text(figured(detail, figures, size: 13, theme)).foregroundStyle(c.ink3).money() }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if let count { Text(count).kFont(.num).foregroundStyle(c.ink3) }
@@ -357,4 +359,44 @@ func readPicked(_ url: URL) -> (name: String, type: String, data: Data)? {
     default: "application/octet-stream"
     }
     return (url.lastPathComponent, type, data)
+}
+
+/// A sentence with its amounts and numbers (each of `figures`) set in the figure font, as the boards write "Bills
+/// €1,156.50 · subscriptions €46.97" or "Rate 93.85 · market 94.60".
+@MainActor
+func figured(_ text: String, _ figures: [String], size: CGFloat, _ theme: KTheme) -> AttributedString {
+    var out = AttributedString(text)
+    out.font = KFont.sans(size, .regular).font(theme)
+    for f in figures where !f.isEmpty {
+        var search = out.startIndex..<out.endIndex
+        while let r = out[search].range(of: f) {
+            out[r].font = KFont.figure(size, .regular).font(theme)
+            search = r.upperBound..<out.endIndex
+        }
+    }
+    return out
+}
+
+/// A small (36pt, radius 8) button that fills its width, as the boards' paired card actions.
+struct WideSmallButton: View {
+    let title: String
+    var style: KButtonStyle = .primary
+    let action: () -> Void
+    @Environment(\.kosha) private var theme
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        let c = theme.colors
+        let (ground, ink): (Color, Color) = style == .primary ? (c.ink, c.onInk) : (c.surface, c.ink)
+        Button(action: action) {
+            Text(title).kFont(.sans(14, .medium)).foregroundStyle(ink).lineLimit(1).minimumScaleFactor(0.8)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .background(ground, in: .rect(cornerRadius: 8))
+                .overlay { if style != .primary { RoundedRectangle(cornerRadius: 8).strokeBorder(c.line) } }
+                .contentShape(.rect(cornerRadius: 8))
+        }
+        .buttonStyle(PressStyle())
+        .opacity(enabled ? 1 : 0.4)
+    }
 }
