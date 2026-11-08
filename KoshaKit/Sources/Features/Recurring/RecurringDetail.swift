@@ -183,6 +183,8 @@ struct RecurringDetailScreen: View {
                 Text(L.subs_ended_on(date: fmtDay(s.endDay ?? s.startDay, "dMMMy", loc))).kFont(.head)
                 Text(L.subs_ended_hint()).kFont(.small).foregroundStyle(c.ink3)
             } else if let next = s.next {
+                // One payment can come from another account, in that account's currency.
+                let moved = next.walletId.flatMap { $0 != s.walletId ? kosha.wallet($0) : nil }
                 HStack {
                     Text(L.subs_next_payment()).kFont(.small).foregroundStyle(c.ink3)
                     Spacer()
@@ -195,12 +197,13 @@ struct RecurringDetailScreen: View {
                         Text([
                             s.isVariable ? L.app_rec_asks_that_day() : s.auto ? L.subs_auto_recorded() : L.subs_mark_when_out(),
                             next.edited ? L.subs_changed_once() : nil,
+                            moved?.name,
                             s.endDay.map { L.subs_ends_on(date: fmtDay($0, "dMMMy", loc)) },
                         ].compactMap { $0 }.joined(separator: " · ")).kFont(.xs).foregroundStyle(c.ink3)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     if !s.isVariable {
-                        MoneyText(s.isTransfer ? Int64(next.amount.magnitude) : next.amount, s.currency, sign: sign)
+                        MoneyText(s.isTransfer ? Int64(next.amount.magnitude) : next.amount, moved?.currency ?? s.currency, sign: sign)
                     }
                 }
                 HStack(spacing: 8) {
