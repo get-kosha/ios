@@ -259,23 +259,30 @@ public struct Segmented<T: Hashable>: View {
     let options: [(T, String)]
     @Binding var selection: T
     let small: Bool
+    /// An optional Phosphor icon before each label, in the same order as `options` (Theme: sun, moon, half circle).
+    let icons: [String]?
     @Environment(\.kosha) private var theme
 
-    public init(_ options: [(T, String)], selection: Binding<T>, small: Bool = false) {
+    public init(_ options: [(T, String)], selection: Binding<T>, small: Bool = false, icons: [String]? = nil) {
         self.options = options
         _selection = selection
         self.small = small
+        self.icons = icons
     }
 
     public var body: some View {
         let c = theme.colors
         HStack(spacing: 2) {
-            ForEach(options, id: \.0) { value, label in
+            ForEach(Array(options.enumerated()), id: \.element.0) { i, option in
+                let (value, label) = option
                 let on = value == selection
                 Button {
                     withAnimation(theme.animation()) { selection = value }
                 } label: {
-                    Text(label)
+                    HStack(spacing: 6) {
+                        if let icon = icons?[safe: i] { PhIcon(icon, size: small ? 16 : 18, color: on ? c.ink : c.ink3) }
+                        Text(label)
+                    }
                         .kFont(small ? (on ? .sans(13, .medium) : .small) : (on ? .head : .body))
                         .foregroundStyle(on ? c.ink : c.ink3)
                         .multilineTextAlignment(.center)
@@ -451,4 +458,8 @@ public struct KField: View {
             if let error { Text(error).kFont(.small).foregroundStyle(c.bad) }
         }
     }
+}
+
+extension Array {
+    subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
 }

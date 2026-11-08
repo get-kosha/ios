@@ -200,7 +200,7 @@ public struct MonthSheet: View {
         let now = Dates.month(kosha.tz)
         let currency = kosha.display
         VStack(spacing: 8) {
-            SheetHeader(L.app_ov_pick_month(), onClose: close, trailing: {
+            SheetHeader(L.app_ov_pick_month(), onClose: nil, trailing: {
                 Chip(L.overview_this_month(), soft: true, small: true) { onPick(now) }
             })
             HStack {
@@ -374,7 +374,7 @@ public struct AccountMenu: View {
                 Segmented(
                     [("light", L.shell_theme_light()), ("dark", L.shell_theme_dark()), ("system", L.shell_theme_system())],
                     selection: Binding(get: { m?.pref("theme", "system") ?? "system" }, set: { kosha.setPreference("theme", $0) }),
-                    small: true
+                    small: true, icons: ["sun", "moon", "circle-half"]
                 )
             }
             Card(tight: true) {
