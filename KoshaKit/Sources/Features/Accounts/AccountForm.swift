@@ -60,14 +60,15 @@ struct AccountFormScreen: View {
                     ForEach(types, id: \.0) { t, icon in
                         let on = t == type
                         Button { type = t } label: {
+                            // The board's type tiles: soft, the picked one filled in the selection colour.
                             VStack(spacing: 6) {
-                                PhIcon(icon, size: 22, color: on ? c.selection : c.ink2)
-                                Text(accountTypeName(t)).kFont(.xs).foregroundStyle(on ? c.ink : c.ink2).multilineTextAlignment(.center)
+                                PhIcon(icon, size: 22, color: on ? c.onSelection : c.ink)
+                                Text(accountTypeName(t)).kFont(on ? .head : .body).foregroundStyle(on ? c.onSelection : c.ink)
+                                    .lineLimit(1).minimumScaleFactor(0.7)
                             }
                             .padding(.horizontal, 4).padding(.vertical, 10)
                             .frame(maxWidth: .infinity, minHeight: 64)
-                            .background(c.surface, in: .rect(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(on ? c.selection : c.line, lineWidth: on ? 1.5 : 1))
+                            .background(on ? c.selection : c.soft, in: .rect(cornerRadius: 14))
                             .contentShape(.rect(cornerRadius: 14))
                         }
                         .buttonStyle(PressStyle())
@@ -87,10 +88,11 @@ struct AccountFormScreen: View {
                     }
                 }
                 Hairline()
-                DetailRow(balanceLabel, labelWidth: 100, trailing: "pencil-simple", action: { picker = .balance }) {
+                // An optional opening balance says so instead of showing the pencil, as on the board.
+                DetailRow(balanceLabel, labelWidth: 100, trailing: initial == nil ? "" : "pencil-simple", action: { picker = .balance }) {
                     if let balance { MoneyText(balance, currency) } else { Text("—").foregroundStyle(c.ink3) }
                     Spacer()
-                    if initial == nil { Text(L.accounts_optional()).kFont(.xs).foregroundStyle(c.ink3) }
+                    if initial == nil { Text(L.accounts_optional()).kFont(.small).foregroundStyle(c.ink3) }
                 }
             }
             if initial != nil && correction != 0 && changedBalance {

@@ -76,11 +76,14 @@ struct RecurringScreen: View {
             TabBanners()
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
-                        Chip(fmtDay(month.first, "MMMMy", theme.locale), soft: true, small: true, action: { monthSheet = true }) {
-                            PhIcon("calendar-blank", size: 16)
+                    // The board has no month line; it shows only once a swipe has moved off this month, with the way back.
+                    if month != thisMonth {
+                        HStack(spacing: 8) {
+                            Chip(fmtDay(month.first, "MMMMy", theme.locale), soft: true, small: true, action: { monthSheet = true }) {
+                                PhIcon("calendar-blank", size: 16)
+                            }
+                            Chip(L.overview_this_month(), small: true) { kosha.month = thisMonth }
                         }
-                        if month != thisMonth { Chip(L.overview_this_month(), small: true) { kosha.month = thisMonth } }
                     }
                     if let data = loaded.value {
                         if loaded.offline { LoadingNote() }
@@ -180,8 +183,8 @@ private struct Committed: View {
         Card {
             Text(L.subs_committed()).kFont(.small).foregroundStyle(c.ink3)
             HeroMoney(committed, display, size: 34)
-            Text(L.subs_committed_hint(bills: inText(bills, display, theme), subscriptions: inText(subs, display, theme)))
-                .kFont(.small).foregroundStyle(c.ink3)
+            let b = inText(bills, display, theme), sub = inText(subs, display, theme)
+            Text(figured(L.subs_committed_hint(bills: b, subscriptions: sub), [b, sub], size: 13, theme)).foregroundStyle(c.ink3)
             Hairline()
             line(L.subs_per_year()) {
                 MoneyText(committed * 12, display, font: .figure(13, .regular))
@@ -230,18 +233,19 @@ private struct Spotted: View {
                     IconTile(categoryIconName(cat?.icon))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(g.payee)
-                        Text([
+                        Text(figured([
                             (g.variable ? L.subs_about_amount(amount: amount) : amount) + " " + everyText(g.every ?? 1, g.unit ?? "month"),
                             L.subs_spotted_paid(count: g.count, day: fmtDay(g.lastDay, "dMMM", theme.locale)),
                             L.subs_spotted_next(day: nextLabel(g.nextDay, today: today, theme.locale)),
-                        ].joined(separator: " · ")).kFont(.xs).foregroundStyle(c.ink3)
+                        ].joined(separator: " · "), [amount], size: 12, theme)).foregroundStyle(c.ink3)
                     }
                 }
                 .accessibilityElement(children: .combine)
                 HStack(spacing: 8) {
-                    KButton(L.subs_make_recurring(), size: .medium) { onAdd(g) }
-                    KButton(L.subs_not_recurring(), style: .secondary, size: .medium) { onDismiss(g) }
+                    WideSmallButton(title: L.subs_make_recurring()) { onAdd(g) }
+                    WideSmallButton(title: L.subs_not_recurring(), style: .secondary) { onDismiss(g) }
                 }
+                .disabled(!kosha.canWrite)
             }
         }
     }

@@ -53,12 +53,16 @@ struct ExchangesScreen: View {
         let c = theme.colors
         let total = Int64(fx.totalCost.rounded())
         let counted = x.marketRate != nil || x.fee != 0
-        return Card {
+        let costText = inText(total, x.fromCurrency, theme)
+        let rate = rateString(fx.rate)
+        let market = x.marketRate.map(rateString)
+        let feeText = inText(x.fee, x.fromCurrency, theme)
+        return Card { VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(fmtDay(x.day, "EEEdMMM", theme.locale)).kFont(.small).foregroundStyle(c.ink3)
                 Spacer()
                 if counted {
-                    Text(L.app_acc_fx_cost(amount: inText(total, x.fromCurrency, theme))).kFont(.small)
+                    Text(figured(L.app_acc_fx_cost(amount: costText), [costText], size: 13, theme))
                         .foregroundStyle(total < 0 ? c.pos : c.ink)
                 }
             }
@@ -77,13 +81,14 @@ struct ExchangesScreen: View {
                 MoneyText(x.received, x.toCurrency, sign: .none)
             }
             HStack(alignment: .top) {
-                Text([L.app_acc_fx_rate(rate: rateString(fx.rate)), x.marketRate.map { L.app_acc_fx_market(rate: rateString($0)) },
-                      x.provider.isEmpty ? nil : x.provider].compactMap { $0 }.joined(separator: " · "))
+                Text(figured([L.app_acc_fx_rate(rate: rate), market.map { L.app_acc_fx_market(rate: $0) },
+                              x.provider.isEmpty ? nil : x.provider].compactMap { $0 }.joined(separator: " · "),
+                             [rate, market ?? ""], size: 12, theme))
                 Spacer()
-                Text(x.fee != 0 ? L.app_acc_fx_fee(amount: inText(x.fee, x.fromCurrency, theme)) : L.app_acc_fx_no_fee())
+                Text(figured(x.fee != 0 ? L.app_acc_fx_fee(amount: feeText) : L.app_acc_fx_no_fee(), [feeText], size: 12, theme))
             }
-            .kFont(.xs).foregroundStyle(c.ink3)
-        }
+            .foregroundStyle(c.ink3)
+        } }
         .accessibilityElement(children: .combine)
     }
 }
