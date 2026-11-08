@@ -39,9 +39,11 @@ extension Kosha {
     /// Writes the widget's snapshot from this month's report. Called after a refresh; offline it keeps the last one.
     public func updateWidget(language: String) async {
         guard signedIn else { return }
+        let version = sessionVersion
         let month = Dates.month(tz).text
         guard let r: MonthFigures = try? await api.get("/api/v1/reports/month", query: ["month": month, "currency": primary])
         else { return }
+        guard signedIn, sessionVersion == version else { return }
         cache.write(WidgetSnapshot.key, WidgetSnapshot(
             month: r.month, currency: r.currency, spending: r.spending, language: language,
             hideAmounts: meta?.pref("hide_amounts", "0") == "1", receipts: meta?.aiFlags.receipts ?? false

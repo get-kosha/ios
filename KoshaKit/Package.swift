@@ -19,6 +19,7 @@ let package = Package(
         .target(name: "Design", dependencies: ["Model"], resources: [.process("Resources")]),
         .target(name: "Features", dependencies: ["Model", "API", "Store", "Design"]),
         .testTarget(name: "ModelTests", dependencies: ["Model"]),
+        .testTarget(name: "APITests", dependencies: ["API", "Store", "Model"]),
         .testTarget(name: "DesignTests", dependencies: ["Design"]),
         .testTarget(name: "StoreTests", dependencies: ["Store", "Model"]),
         .testTarget(name: "FeaturesTests", dependencies: ["Features", "Model", "Design"]),

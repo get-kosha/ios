@@ -30,7 +30,10 @@ public struct PendingSignIn: Codable, Sendable {
 
     /// Whether ASWebAuthenticationSession can finish on the server's HTTPS callback (an associated domain), or must
     /// wait for the app.getkosha: scheme from the callback page's Open Kosha button.
-    public var httpsCallback: Bool { URL(string: server).flatMap(\.host).map(associatedHosts.contains) ?? false }
+    public var httpsCallback: Bool {
+        guard let url = URLComponents(string: server) else { return false }
+        return url.scheme == "https" && associatedHosts.contains(url.host ?? "") && (url.port ?? 443) == 443
+    }
 }
 
 private struct Discovery: Decodable {
@@ -87,6 +90,8 @@ public enum KoshaError: Error, Sendable, LocalizedError {
 public actor Auth {
     let store: TokenStore
     let session: URLSession
+    private var refreshing: (id: UUID, tokens: Tokens, task: Task<Tokens?, Error>)?
+    private var signInVersion = 0
 
     public init(store: TokenStore, session: URLSession = .shared) {
         self.store = store
@@ -101,7 +106,9 @@ public actor Auth {
         if raw.isEmpty { return nil }
         let withScheme = raw.contains("://") ? raw : "https://\(raw)"
         guard let c = URLComponents(string: withScheme), let scheme = c.scheme?.lowercased(), let host = c.host?.lowercased(),
-              !host.isEmpty, scheme == "https" || scheme == "http" else { return nil }
+              !host.isEmpty, !host.contains(where: \.isWhitespace), c.user == nil, c.password == nil,
+              c.port.map({ (1...65535).contains($0) }) ?? true,
+              scheme == "https" || scheme == "http" else { return nil }
         if scheme == "http" && !["localhost", "127.0.0.1"].contains(host) { return nil }
         let port = c.port.map { ($0 == 443 && scheme == "https") || ($0 == 80 && scheme == "http") ? "" : ":\($0)" } ?? ""
         return "\(scheme)://\(host)\(port)"
@@ -111,12 +118,15 @@ public actor Auth {
     public func discover(_ server: String) async throws -> PendingSignIn {
         guard let url = URL(string: "\(server)/.well-known/oauth-authorization-server") else { throw KoshaError.auth(server) }
         let (data, res) = try await fetch(URLRequest(url: url))
-        guard (res as? HTTPURLResponse)?.statusCode == 200, let doc = try? KoshaJSON.decode(Discovery.self, data) else {
+        guard (res as? HTTPURLResponse)?.statusCode == 200, let doc = try? KoshaJSON.decode(Discovery.self, data),
+              let issuer = doc.issuer, !issuer.isEmpty,
+              [issuer, doc.authorization_endpoint, doc.token_endpoint].allSatisfy({ Self.normalise($0) == server }),
+              doc.revocation_endpoint.map({ Self.normalise($0) == server }) ?? true else {
             throw KoshaError.auth("No Kosha server at \(server)")
         }
         return PendingSignIn(
             server: server, url: doc.authorization_endpoint, state: "", verifier: "", tokenUrl: doc.token_endpoint,
-            revokeUrl: doc.revocation_endpoint, issuer: doc.issuer ?? ""
+            revokeUrl: doc.revocation_endpoint, issuer: issuer
         )
     }
 
@@ -151,16 +161,24 @@ public actor Auth {
     /// The answer as query items when it came where this sign-in sent it: the server's own callback, or the app's
     /// scheme from the callback page's button.
     public nonisolated static func callback(server: String, redirect: URL) -> [String: String]? {
-        guard let c = URLComponents(url: redirect, resolvingAgainstBaseURL: false) else { return nil }
+        guard let c = URLComponents(url: redirect, resolvingAgainstBaseURL: false),
+              c.user == nil, c.password == nil, c.fragment == nil else { return nil }
         if c.scheme == fallbackScheme {
-            guard c.path == "/oauth/callback" || c.host == "oauth" else { return nil }
+            guard c.path == "/oauth/callback", c.host == nil, c.port == nil else { return nil }
         } else {
             guard let expected = URLComponents(string: redirectUri(server)), c.scheme == expected.scheme,
-                  c.host == expected.host, c.port == expected.port, c.path == expected.path else { return nil }
+                  c.host == expected.host, Self.port(c) == Self.port(expected), c.path == expected.path else { return nil }
         }
         var out: [String: String] = [:]
-        for item in c.queryItems ?? [] { out[item.name] = item.value ?? "" }
+        for item in c.queryItems ?? [] {
+            guard out[item.name] == nil else { return nil }
+            out[item.name] = item.value ?? ""
+        }
         return out
+    }
+
+    private nonisolated static func port(_ url: URLComponents) -> Int? {
+        url.port ?? (url.scheme == "https" ? 443 : url.scheme == "http" ? 80 : nil)
     }
 
     /// Finishes a sign-in from the answer the browser handed back, and stores the tokens. The code is exchanged with
@@ -170,17 +188,20 @@ public actor Auth {
             throw KoshaError.auth("The sign-in came back somewhere unexpected.")
         }
         if let e = q["error"] { throw KoshaError.auth(q["error_description"] ?? e) }
-        guard q["state"] == pending.state else { throw KoshaError.auth("The sign-in didn't match. Try again.") }
+        guard !pending.state.isEmpty, q["state"] == pending.state else { throw KoshaError.auth("The sign-in didn't match. Try again.") }
         // RFC 9207: an answer from another server than the one asked is refused.
-        if let iss = q["iss"], !pending.issuer.isEmpty, iss.trimmingTrailingSlash != pending.issuer.trimmingTrailingSlash {
+        if pending.issuer.isEmpty || q["iss"] != pending.issuer {
             throw KoshaError.auth("The sign-in came back from another server.")
         }
-        guard let code = q["code"] else { throw KoshaError.auth("The sign-in came back without a code.") }
+        guard let code = q["code"], !code.isEmpty else { throw KoshaError.auth("The sign-in came back without a code.") }
+        signInVersion += 1
+        let version = signInVersion
         let tokens = try await exchange(pending.server, pending.tokenUrl, [
             "grant_type": "authorization_code", "code": code, "redirect_uri": redirectUri(pending.server),
             "client_id": clientId, "code_verifier": pending.verifier, "resource": "\(pending.server)/api/v1",
         ], previousRefresh: nil)
-        store.write(tokens)
+        guard version == signInVersion else { throw KoshaError.signedOut }
+        try store.save(tokens)
         return tokens
     }
 
@@ -189,17 +210,28 @@ public actor Auth {
     public func refresh(failed: String?) async throws -> Tokens? {
         guard let current = store.read() else { return nil }
         if let failed, current.access != failed { return current }
+        if let refreshing, refreshing.tokens == current { return try await refreshing.task.value }
+        // Actors are reentrant across HTTP awaits: share the whole rotation, including its Keychain write.
+        let id = UUID()
+        let task = Task { try await self.rotate(current) }
+        refreshing = (id, current, task)
+        defer { if refreshing?.id == id { refreshing = nil } }
+        return try await task.value
+    }
+
+    private func rotate(_ current: Tokens) async throws -> Tokens? {
         do {
             let next = try await exchange(current.server, "\(current.server)/api/auth/oauth2/token", [
                 "grant_type": "refresh_token", "refresh_token": current.refresh, "client_id": clientId,
                 "resource": "\(current.server)/api/v1",
             ], previousRefresh: current.refresh)
-            store.write(next)
+            guard store.read() == current else { return nil }
+            try store.save(next, rotating: true)
             return next
         } catch KoshaError.auth(let m) {
             // A refused refresh means the session is over. No signal, 429 or 5xx keep the session: the next try sends
             // the same refresh token, and the server repeats a lost reply until the new token is used.
-            store.clear()
+            if store.read() == current { store.clear() }
             throw KoshaError.auth(m)
         }
     }
@@ -207,7 +239,10 @@ public actor Auth {
     /// Signs out: revokes the refresh token on the server once (best effort when offline) and forgets the session.
     /// Never retried: revoking a revoked token ends every sign-in of this account on this client.
     public func signOut() async {
+        signInVersion += 1
         guard let current = store.read() else { return }
+        // Forget before awaiting HTTP: a second sign-out cannot revoke twice, and a late refresh cannot restore it.
+        store.clear()
         if let url = URL(string: "\(current.server)/api/auth/oauth2/revoke") {
             var req = URLRequest(url: url)
             req.httpMethod = "POST"
@@ -215,7 +250,6 @@ public actor Auth {
             req.httpBody = Auth.form(["token": current.refresh, "token_type_hint": "refresh_token", "client_id": clientId])
             _ = try? await session.data(for: req)
         }
-        store.clear()
     }
 
     private func exchange(_ server: String, _ url: String, _ body: [String: String], previousRefresh: String?) async throws -> Tokens {
@@ -242,9 +276,14 @@ public actor Auth {
             throw KoshaError.retryLater(seconds: nil)
         }
         guard let refresh = t.refresh_token ?? previousRefresh else { throw KoshaError.auth("No refresh token") }
+        let lifetime = t.expires_in ?? 3600
+        let (expiresAt, overflow) = Int64(Date().timeIntervalSince1970).addingReportingOverflow(lifetime)
+        guard !t.access_token.isEmpty, !refresh.isEmpty, lifetime >= 0, !overflow else {
+            throw KoshaError.retryLater(seconds: nil)
+        }
         return Tokens(
             server: server, clientId: clientId, access: t.access_token, refresh: refresh,
-            expiresAt: Int64(Date().timeIntervalSince1970) + (t.expires_in ?? 3600)
+            expiresAt: expiresAt
         )
     }
 
@@ -272,8 +311,4 @@ public actor Auth {
         data.base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
     }
-}
-
-extension String {
-    var trimmingTrailingSlash: String { hasSuffix("/") ? String(dropLast()) : self }
 }

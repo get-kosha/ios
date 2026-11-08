@@ -200,9 +200,9 @@ public struct MonthSheet: View {
         let now = Dates.month(kosha.tz)
         let currency = kosha.display
         VStack(spacing: 8) {
-            SheetHeader(L.app_ov_pick_month()) {
+            SheetHeader(L.app_ov_pick_month(), onClose: close, trailing: {
                 Chip(L.overview_this_month(), soft: true, small: true) { onPick(now) }
-            }
+            })
             HStack {
                 IconButton("caret-left", label: L.app_previous_year()) { year -= 1 }
                 Text(String(year)).kFont(.figure(17, .medium)).frame(maxWidth: .infinity)

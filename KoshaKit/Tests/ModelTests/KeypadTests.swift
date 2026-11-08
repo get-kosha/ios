@@ -75,6 +75,9 @@ private func dec(_ s: String) -> Decimal { Decimal(string: s)! }
     #expect(Keypad.minorUnits("5-10") == nil)
     #expect(Keypad.minorUnits("4-4") == nil)
     #expect(Keypad.minorUnits("1/0") == nil)
+    #expect(Keypad.minorUnits("99999999*99999999*99999999") == nil)
+    #expect(Keypad.minorUnits("99999999*99999999") == nil)
+    #expect(Keypad.evaluate(Array(repeating: "99999999", count: 30).joined(separator: "*")) == nil)
 }
 
 @Test func display() {

@@ -63,7 +63,11 @@ public struct Rounded: Codable, Sendable, Hashable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.singleValueContainer()
         if c.decodeNil() { wrappedValue = 0 } else if let i = try? c.decode(Int64.self) { wrappedValue = i } else {
-            wrappedValue = Int64(try c.decode(Double.self).rounded())
+            let value = try c.decode(Decimal.self).rounded(0)
+            guard value >= Decimal(Int64.min), value <= Decimal(Int64.max) else {
+                throw DecodingError.dataCorruptedError(in: c, debugDescription: "Amount exceeds Int64")
+            }
+            wrappedValue = NSDecimalNumber(decimal: value).int64Value
         }
     }
 
@@ -113,7 +117,7 @@ public enum JSONValue: Codable, Sendable, Hashable {
     public var string: String? { if case .string(let s) = self { s } else { nil } }
     public var bool: Bool? { if case .bool(let b) = self { b } else { nil } }
     public var number: Double? { if case .number(let n) = self { n } else { nil } }
-    public var int: Int64? { number.map { Int64($0.rounded()) } }
+    public var int: Int64? { number.flatMap { Int64(exactly: $0.rounded()) } }
     public var array: [JSONValue]? { if case .array(let a) = self { a } else { nil } }
     public var object: [String: JSONValue]? { if case .object(let o) = self { o } else { nil } }
     public subscript(key: String) -> JSONValue? { object?[key] }

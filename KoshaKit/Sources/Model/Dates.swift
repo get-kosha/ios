@@ -12,8 +12,10 @@ public struct Day: Hashable, Comparable, Sendable, Codable, CustomStringConverti
 
     public init?(_ text: String) {
         let p = text.split(separator: "-").compactMap { Int($0) }
-        guard p.count == 3, (1...12).contains(p[1]), (1...31).contains(p[2]) else { return nil }
+        guard text.range(of: #"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"#, options: .regularExpression) != nil,
+              p.count == 3, (1...9999).contains(p[0]), (1...12).contains(p[1]), (1...31).contains(p[2]) else { return nil }
         self.init(p[0], p[1], p[2])
+        guard Day(date: date) == self else { return nil }
     }
 
     public var description: String { String(format: "%04d-%02d-%02d", year, month, day) }
@@ -71,7 +73,8 @@ public struct Month: Hashable, Comparable, Sendable, Codable, CustomStringConver
 
     public init?(_ text: String) {
         let p = text.split(separator: "-").compactMap { Int($0) }
-        guard p.count == 2, (1...12).contains(p[1]) else { return nil }
+        guard text.range(of: #"^[0-9]{4}-[0-9]{2}$"#, options: .regularExpression) != nil,
+              p.count == 2, (1...9999).contains(p[0]), (1...12).contains(p[1]) else { return nil }
         self.init(p[0], p[1])
     }
 

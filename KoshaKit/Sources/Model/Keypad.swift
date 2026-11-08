@@ -121,14 +121,17 @@ public enum Keypad {
         terms.append(current)
         var result = terms[0]
         for (n, op) in signs.enumerated() { result = op == "+" ? result + terms[n + 1] : result - terms[n + 1] }
-        return result.rounded(decimals)
+        return result.isNaN ? nil : result.rounded(decimals)
     }
 
     /// The amount to save, in minor units (×100 for every currency) and positive, or nil when it isn't above zero or
     /// can't be worked out. The kind of entry gives it its sign.
     public static func minorUnits(_ input: String, decimals: Int = 2) -> Int64? {
         guard let value = evaluate(input, decimals: decimals), value > 0 else { return nil }
-        return NSDecimalNumber(decimal: (value * 100).rounded(0)).int64Value
+        let minor = (value * 100).rounded(0)
+        // The server accepts JavaScript safe integers; larger expressions cannot be saved exactly.
+        guard !minor.isNaN, minor <= 9_007_199_254_740_991 else { return nil }
+        return NSDecimalNumber(decimal: minor).int64Value
     }
 
     /// One typed number with grouping, as typed: `1204.5` reads `1,204.5`.

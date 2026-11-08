@@ -19,7 +19,7 @@ public final class AppLock {
     public func backgrounded() { kosha.local.backgroundedAt = Date() }
 
     public func foregrounded() {
-        guard kosha.local.lock, kosha.signedIn else { return }
+        guard kosha.local.lock, kosha.signedIn else { locked = false; return }
         let away = Date().timeIntervalSince(kosha.local.backgroundedAt ?? .distantPast)
         if away >= Double(kosha.local.lockAfter * 60) { locked = true }
     }
@@ -29,7 +29,6 @@ public final class AppLock {
         var error: NSError?
         // .deviceOwnerAuthentication offers the passcode after Face ID or Touch ID.
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            locked = false
             return
         }
         if (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L.app_lock_prompt())) == true {
