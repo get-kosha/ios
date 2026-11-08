@@ -629,12 +629,13 @@ struct ChoiceRow<T: Hashable>: View {
     let description: String?
     let options: [(T, String)]
     @Binding var selection: T
+    var icons: [String]? = nil
     @Environment(\.kosha) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).kFont(.head)
-            Segmented(options, selection: $selection, small: true)
+            Segmented(options, selection: $selection, small: true, icons: icons)
             if let description { Text(description).kFont(.xs).foregroundStyle(theme.colors.ink3) }
         }
     }

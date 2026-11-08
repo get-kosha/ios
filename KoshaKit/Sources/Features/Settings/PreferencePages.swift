@@ -139,7 +139,8 @@ struct AppearancePage: View {
                 VStack(alignment: .leading, spacing: 16) {
                     ChoiceRow(title: L.settings_row_theme(), description: L.settings_appearance_theme_desc(),
                               options: [("light", L.settings_appearance_light()), ("dark", L.settings_appearance_dark()),
-                                        ("system", L.settings_appearance_system())], selection: pick("theme"))
+                                        ("system", L.settings_appearance_system())], selection: pick("theme"),
+                              icons: ["sun", "moon", "circle-half"])
                     VStack(alignment: .leading, spacing: 8) {
                         Text(L.settings_row_accent()).kFont(.head)
                         AccentPicker(selected: m.prefOf("accent")) { w.pref("accent", $0) }
