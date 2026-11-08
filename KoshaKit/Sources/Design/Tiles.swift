@@ -230,7 +230,12 @@ public struct TransferPills: View {
             AccountPill(from.name, color: from.color, caret: false, action: onFrom)
                 .frame(maxWidth: .infinity)
             Button(action: onSwap) {
-                PhIcon("arrow-right", size: 18, color: theme.colors.ink3).frame(width: 34, height: 44)
+                // A solid 34pt circle (the board's .ibtn.solid.swap), tappable across 44pt.
+                PhIcon("arrow-right", size: 18, color: theme.colors.ink2)
+                    .frame(width: 34, height: 34)
+                    .background(theme.colors.surface, in: .circle)
+                    .overlay(Circle().strokeBorder(theme.colors.line))
+                    .frame(height: 44)
                     .contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(PressStyle())

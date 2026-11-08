@@ -120,6 +120,8 @@ public struct IconButton: View {
         }
         .buttonStyle(PressStyle())
         .accessibilityLabel(label)
+        // One layer at 40%, as the board's .dim does; without it the label dims again over its dimmed ground.
+        .compositingGroup()
         .opacity(enabled ? 1 : 0.4)
     }
 }
@@ -180,6 +182,8 @@ public struct KButton: View {
             .contentShape(.rect(cornerRadius: size.radius))
         }
         .buttonStyle(PressStyle())
+        // One layer at 40%, as the board's .dim does; without it the label dims again over its dimmed ground.
+        .compositingGroup()
         .opacity(enabled ? 1 : 0.4)
     }
 }
