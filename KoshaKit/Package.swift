@@ -7,7 +7,7 @@ import PackageDescription
 let package = Package(
     name: "KoshaKit",
     defaultLocalization: "en",
-    platforms: [.iOS("17.4"), .macOS(.v14)],
+    platforms: [.iOS("17.4"), .macOS("14.4")],
     products: [
         .library(name: "KoshaKit", targets: ["Model", "API", "Store", "Design", "Features"]),
         .library(name: "KoshaWidgetKit", targets: ["Model", "Store", "Design"]),
@@ -20,6 +20,7 @@ let package = Package(
         .target(name: "Features", dependencies: ["Model", "API", "Store", "Design"]),
         .testTarget(name: "ModelTests", dependencies: ["Model"]),
         .testTarget(name: "DesignTests", dependencies: ["Design"]),
+        .testTarget(name: "StoreTests", dependencies: ["Store", "Model"]),
     ],
     swiftLanguageModes: [.v6]
 )

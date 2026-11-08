@@ -50,6 +50,11 @@ targets:
           [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown,
            UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIApplicationSupportsIndirectInputEvents: true
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [app.getkosha.outbox]
+        CFBundleURLTypes:
+          - CFBundleURLName: app.getkosha
+            CFBundleURLSchemes: [app.getkosha]
         NSFaceIDUsageDescription: Kosha uses Face ID to unlock the app.
         NSCameraUsageDescription: Kosha uses the camera to scan receipts and attach bills.
         NSPhotoLibraryUsageDescription: Kosha attaches photos of receipts and bills that you choose.

@@ -1,37 +1,44 @@
 import SwiftUI
-import Design
+import BackgroundTasks
+import Store
 import Features
+
+/// The background task that sends entries saved offline once there is a connection.
+private let outboxTask = "app.getkosha.outbox"
 
 @main
 struct KoshaApp: App {
+    @State private var kosha: Kosha
+
+    init() {
+        // The app and its widget share the session through this keychain group.
+        let kosha = Kosha(accessGroup: "654ASRW868.app.getkosha")
+        _kosha = State(initialValue: kosha)
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: outboxTask, using: nil) { task in
+            Task { @MainActor in
+                kosha.sendOutbox()
+                try? await Task.sleep(for: .seconds(20))
+                task.setTaskCompleted(success: kosha.waiting.isEmpty)
+            }
+        }
+        kosha.scheduleSend = {
+            let request = BGAppRefreshTaskRequest(identifier: outboxTask)
+            request.earliestBeginDate = Date(timeIntervalSinceNow: 60)
+            try? BGTaskScheduler.shared.submit(request)
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
-            AppRoot()
+            #if DEBUG
+            if UserDefaults.standard.bool(forKey: "InputsKit") {
+                InputsKit()
+            } else {
+                KoshaRoot(kosha: kosha)
+            }
+            #else
+            KoshaRoot(kosha: kosha)
+            #endif
         }
-    }
-}
-
-/// M1: the tab shell with placeholder tabs. Debug builds open the Inputs kit with `-InputsKit YES`.
-struct AppRoot: View {
-    @State private var tab = MainTab.overview
-
-    var body: some View {
-        #if DEBUG
-        if UserDefaults.standard.bool(forKey: "InputsKit") {
-            InputsKit()
-        } else {
-            shell
-        }
-        #else
-        shell
-        #endif
-    }
-
-    private var shell: some View {
-        RootTabs(tab: $tab, onAdd: {}) { tab in
-            Text(tab.rawValue).kFont(.page)
-        }
-        .koshaTheme(ThemeSettings(language: L.resolve(nil)))
-        .onAppear { L.use(language: L.resolve(nil)) }
     }
 }

@@ -291,7 +291,8 @@ public struct AccountChoice: Identifiable, Sendable {
     }
 }
 
-/// The account picker's list, grouped by type (Bank & cash, Credit cards, Investments) in the order given.
+/// The account picker's list, grouped by type (Bank & cash, Credit cards, Investments) in the order given, each group
+/// under its caption. The picked one sits on the selection ground with a check (AccountSheet).
 public struct AccountList: View {
     let accounts: [AccountChoice]
     let selected: String?
@@ -307,27 +308,26 @@ public struct AccountList: View {
     public var body: some View {
         let c = theme.colors
         let groups = accounts.reduce(into: [String]()) { if !$0.contains($1.group) { $0.append($1.group) } }
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(groups, id: \.self) { group in
-                VStack(alignment: .leading, spacing: 6) {
-                    if groups.count > 1 { Text(group).kFont(.caption).foregroundStyle(c.ink3).padding(.leading, 4) }
-                    Card(tight: true) {
-                        let rows = accounts.filter { $0.group == group }
-                        ForEach(rows.indices, id: \.self) { i in
-                            let a = rows[i]
-                            if i > 0 { Hairline() }
-                            ListRow(action: { onPick(a.id) }) {
-                                AccountDot(a.color, size: 10)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(a.name).kFont(.body)
-                                    Text(a.detail).kFont(.small).foregroundStyle(c.ink3)
-                                }
-                                Spacer(minLength: 8)
-                                Text(a.balance).kFont(.num).foregroundStyle(c.ink2).money()
-                                Radio(a.id == selected)
+                if !group.isEmpty { Text(group).kFont(.caption).foregroundStyle(c.ink3).padding(.top, 6) }
+                Card(tight: true) {
+                    let rows = accounts.filter { $0.group == group }
+                    ForEach(rows.indices, id: \.self) { i in
+                        let a = rows[i]
+                        let on = a.id == selected
+                        if i > 0 { Hairline() }
+                        ListRow(selected: on, action: { onPick(a.id) }) {
+                            AccountDot(a.color, size: 10)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(a.name).kFont(.body)
+                                Text(a.detail).kFont(.small).foregroundStyle(c.ink3).money()
                             }
-                            .accessibilityAddTraits(a.id == selected ? .isSelected : [])
+                            Spacer(minLength: 8)
+                            if !a.balance.isEmpty { Text(a.balance).kFont(.num).foregroundStyle(c.ink2).money() }
+                            if on { PhIcon("check", size: 20, color: c.selection) }
                         }
+                        .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
             }

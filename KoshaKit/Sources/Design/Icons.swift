@@ -97,3 +97,6 @@ let categoryIconsByEmoji: [String: String] = [
     "⚽": "soccer-ball", "🧾": "receipt", "💼": "briefcase", "🚗": "car", "⚖": "scales", "☕": "coffee",
     "💻": "laptop",
 ]
+
+/// The brand artwork in Design's asset catalog: "Symbol", "SymbolReversed", "Wordmark", "WordmarkReversed".
+public func brandImage(_ name: String) -> Image { Image(name, bundle: .module) }
