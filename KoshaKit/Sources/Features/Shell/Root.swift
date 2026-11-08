@@ -224,8 +224,8 @@ struct Sidebar: View {
     var body: some View {
         let c = theme.colors
         VStack(alignment: .leading, spacing: 4) {
-            brandImage(c.dark ? "WordmarkReversed" : "Wordmark").resizable().scaledToFit().frame(height: 24)
-                .padding(.horizontal, 12).padding(.bottom, 16).accessibilityLabel("Kosha")
+            Wordmark(size: 28, color: c.ink)
+                .padding(.horizontal, 12).padding(.bottom, 16)
             KButton(L.shell_add_transaction(), size: .medium, icon: "plus") { nav.openAdd() }
                 .padding(.bottom, 12)
             ForEach(MainTab.allCases, id: \.self) { tab in

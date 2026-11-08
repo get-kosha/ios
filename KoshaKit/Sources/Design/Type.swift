@@ -6,7 +6,7 @@ import CoreText
 public enum Fonts {
     private static let once: Void = {
         let urls = ["geist_regular", "geist_medium", "geist_semibold", "geist_mono_regular", "geist_mono_medium",
-                    "phosphor", "phosphor_fill"]
+                    "phosphor", "phosphor_fill", "bricolage_grotesque_bold"]
             .compactMap { Bundle.module.url(forResource: $0, withExtension: "ttf", subdirectory: "Fonts")
                 ?? Bundle.module.url(forResource: $0, withExtension: "ttf") }
         CTFontManagerRegisterFontURLs(urls as CFArray, .process, true, nil)
@@ -108,4 +108,24 @@ private struct KStyle: ViewModifier {
 extension View {
     /// Sets a Kosha type style: font, tracking and, for captions, upper case.
     public func kFont(_ font: KFont) -> some View { modifier(KStyle(font: font)) }
+}
+
+/// Kosha's wordmark: lowercase "kosha" in Bricolage Grotesque Bold at −0.03em, as the Launch and SignIn boards set it.
+/// A brand mark, so it keeps its size at every text size and VoiceOver reads it as the app's name.
+public struct Wordmark: View {
+    let size: CGFloat
+    let color: Color
+
+    public init(size: CGFloat, color: Color) {
+        self.size = size
+        self.color = color
+    }
+
+    public var body: some View {
+        Text(verbatim: "kosha")
+            .font(.custom("BricolageGrotesque-Bold", fixedSize: size))
+            .tracking(size * -0.03)
+            .foregroundStyle(color)
+            .accessibilityLabel(Text(verbatim: "Kosha"))
+    }
 }

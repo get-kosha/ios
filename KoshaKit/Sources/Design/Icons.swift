@@ -98,5 +98,5 @@ let categoryIconsByEmoji: [String: String] = [
     "💻": "laptop",
 ]
 
-/// The brand artwork in Design's asset catalog: "Symbol", "SymbolReversed", "Wordmark", "WordmarkReversed".
+/// The brand artwork in Design's asset catalog: "Symbol" and "SymbolReversed". The wordmark is type (`Wordmark`).
 public func brandImage(_ name: String) -> Image { Image(name, bundle: .module) }

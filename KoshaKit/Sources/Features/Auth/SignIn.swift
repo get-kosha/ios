@@ -114,10 +114,8 @@ struct BrandPanel: View {
             Spacer(minLength: 0)
             brandImage("SymbolReversed").resizable().scaledToFit().frame(height: 56)
                 .accessibilityHidden(true)
-            brandImage("WordmarkWhite").resizable().renderingMode(.template).scaledToFit().frame(height: 46)
-                .foregroundStyle(Brand.paper)
-                .padding(.top, 22)
-                .accessibilityLabel("Kosha")
+            Wordmark(size: 52, color: Brand.paper)
+                .padding(.top, 14)
             Text(L.auth_headline_default())
                 .font(.custom("Geist-Regular", size: 18, relativeTo: .title3))
                 .foregroundStyle(Brand.paper.opacity(0.85))
@@ -326,8 +324,7 @@ public struct LaunchScreen: View {
             brandImage("SymbolReversed").resizable().scaledToFit().frame(height: 84)
             VStack {
                 Spacer()
-                brandImage("WordmarkWhite").resizable().renderingMode(.template).scaledToFit().frame(height: 20)
-                    .foregroundStyle(Brand.paper.opacity(0.7))
+                Wordmark(size: 22, color: Brand.paper.opacity(0.7))
                     .padding(.bottom, 56)
             }
         }
