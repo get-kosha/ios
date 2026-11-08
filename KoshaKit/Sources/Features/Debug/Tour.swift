@@ -89,11 +89,15 @@ public enum Tour {
         func url(_ data: Data, _ h: HTTPURLResponse) -> String? {
             h.value(forHTTPHeaderField: "location") ?? (try? KoshaJSON.decode(JSONValue.self, data))?["url"]?.string
         }
-        guard let (d1, h1) = await browser(c.url!.absoluteString), let login = url(d1, h1) else { return }
+        guard let (d1, h1) = await browser(c.url!.absoluteString), let login = url(d1, h1) else {
+            return print("Tour: authorize gave no login URL")
+        }
         let query = login.components(separatedBy: "?").dropFirst().joined(separator: "?")
         let body = String(data: try! KoshaJSON.encode(["email": "demo@kosha.local", "password": "kosha-demo-2026", "oauth_query": query]),
                           encoding: .utf8)!
-        guard let (d2, h2) = await browser("/api/auth/sign-in/email", body: body) else { return }
+        guard let (d2, h2) = await browser("/api/auth/sign-in/email", body: body) else {
+            return print("Tour: sign-in request failed")
+        }
         var next = url(d2, h2)
         for _ in 0..<5 {
             guard let n = next, !n.contains(callbackPath) else { break }
@@ -101,18 +105,26 @@ public enum Tour {
             next = url(d, h)
         }
         guard let n = next, let code = URLComponents(string: n.hasPrefix("http") ? n : server + n)?
-            .queryItems?.first(where: { $0.name == "code" })?.value else { return }
+            .queryItems?.first(where: { $0.name == "code" })?.value else {
+            return print("Tour: no code in \(next ?? "nil")")
+        }
         var t = URLRequest(url: URL(string: "\(server)/api/auth/oauth2/token")!)
         t.httpMethod = "POST"
+        // As the app does: no browser cookies on the token request, or the server's CSRF check refuses it.
+        t.httpShouldHandleCookies = false
         t.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "content-type")
         let form = ["grant_type": "authorization_code", "code": code, "redirect_uri": redirectUri(server), "client_id": clientId,
                     "code_verifier": verifier, "resource": "\(server)/api/v1"]
         t.httpBody = Data(form.map { "\($0)=\($1.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $1)" }
             .joined(separator: "&").utf8)
-        guard let (data, _) = try? await http.data(for: t), let json = try? KoshaJSON.decode(JSONValue.self, data),
-              let access = json["access_token"]?.string, let refresh = json["refresh_token"]?.string else { return }
+        let data = (try? await http.data(for: t))?.0 ?? Data()
+        guard let json = try? KoshaJSON.decode(JSONValue.self, data),
+              let access = json["access_token"]?.string, let refresh = json["refresh_token"]?.string else {
+            return print("Tour: token exchange failed: \(String(decoding: data.prefix(300), as: UTF8.self))")
+        }
         kosha.tokens.write(Tokens(server: server, clientId: clientId, access: access, refresh: refresh,
                                   expiresAt: Int64(Date().timeIntervalSince1970) + 3600))
+        print("Tour: signed in, stored: \(kosha.tokens.read() != nil)")
         kosha.didSignIn()
     }
 }
