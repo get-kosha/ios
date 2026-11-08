@@ -203,7 +203,6 @@ private struct PaceChart: View {
             let pad = size.height / 12
             let x = { (day: Int) in size.width * CGFloat(day) / CGFloat(days) }
             let y = { (v: Double) in size.height - pad - CGFloat(v / top) * (size.height - 2 * pad) }
-            ctx.clip(to: Path(CGRect(x: 0, y: 0, width: size.width * reveal, height: size.height)))
             if let usual = pace.usual {
                 var p = Path()
                 p.move(to: CGPoint(x: 0, y: y(0)))
@@ -226,6 +225,8 @@ private struct PaceChart: View {
             }
         }
         .frame(height: 120)
+        // A Canvas doesn't animate its inputs, so the draw-in is a mask that grows from the left.
+        .mask(alignment: .leading) { Rectangle().scaleEffect(x: reveal, y: 1, anchor: .leading) }
         .accessibilityHidden(true)
         .onAppear {
             if let a = theme.motion == .on ? Animation.easeOut(duration: 0.7) : nil {
