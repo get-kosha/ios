@@ -124,22 +124,22 @@ struct MainTabs: View {
     @Environment(Navigator.self) private var nav
     @Environment(\.kosha) private var theme
     @Environment(\.webAuthenticationSession) private var web
+    @Environment(\.horizontalSizeClass) private var width
     @State private var visited: Set<MainTab> = [.overview]
 
     var body: some View {
         @Bindable var nav = nav
-        RootTabs(tab: $nav.tab, onAdd: { nav.openAdd() }) { _ in
-            ZStack {
-                ForEach(MainTab.allCases, id: \.self) { tab in
-                    if visited.contains(tab) {
-                        NavigationStack(path: nav.path(tab)) {
-                            screen(tab).navigationDestination(for: Route.self) { destination($0) }
-                        }
-                        .opacity(tab == nav.tab ? 1 : 0)
-                        .allowsHitTesting(tab == nav.tab)
-                        .accessibilityHidden(tab != nav.tab)
-                    }
+        Group {
+            if width == .regular {
+                // iPad: a sidebar with the four tabs and Add, like the web's desktop layout; the tab is the detail.
+                NavigationSplitView {
+                    Sidebar()
+                } detail: {
+                    stacks
                 }
+                .navigationSplitViewStyle(.balanced)
+            } else {
+                RootTabs(tab: $nav.tab, onAdd: { nav.openAdd() }) { _ in stacks }
             }
         }
         .onChange(of: nav.tab) { _, t in visited.insert(t) }
@@ -160,6 +160,22 @@ struct MainTabs: View {
         }
     }
 
+    private var stacks: some View {
+        ZStack {
+            ForEach(MainTab.allCases, id: \.self) { tab in
+                if visited.contains(tab) {
+                    NavigationStack(path: nav.path(tab)) {
+                        screen(tab).navigationDestination(for: Route.self) { destination($0) }
+                    }
+                    .opacity(tab == nav.tab ? 1 : 0)
+                    .allowsHitTesting(tab == nav.tab)
+                    .accessibilityHidden(tab != nav.tab)
+                }
+            }
+        }
+        .background(theme.colors.bg)
+    }
+
     @ViewBuilder
     private func screen(_ tab: MainTab) -> some View {
         switch tab {
@@ -168,5 +184,42 @@ struct MainTabs: View {
         case .recurring: RecurringScreen()
         case .accounts: AccountsScreen()
         }
+    }
+}
+
+/// The iPad sidebar: the wordmark, Add, and the four tabs with their icons (fill in the selection colour when picked).
+struct Sidebar: View {
+    @Environment(Navigator.self) private var nav
+    @Environment(\.kosha) private var theme
+
+    var body: some View {
+        let c = theme.colors
+        VStack(alignment: .leading, spacing: 4) {
+            brandImage(c.dark ? "WordmarkReversed" : "Wordmark").resizable().scaledToFit().frame(height: 24)
+                .padding(.horizontal, 12).padding(.bottom, 16).accessibilityLabel("Kosha")
+            KButton(L.shell_add_transaction(), size: .medium, icon: "plus") { nav.openAdd() }
+                .padding(.bottom, 12)
+            ForEach(MainTab.allCases, id: \.self) { tab in
+                let on = tab == nav.tab
+                Button { nav.tab = tab } label: {
+                    HStack(spacing: 12) {
+                        PhIcon(tab.icon, size: 22, fill: on, color: on ? c.selection : c.ink2)
+                        Text(tab.label).kFont(on ? .head : .body).foregroundStyle(on ? c.ink : c.ink2)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .background(on ? c.sel : .clear, in: .rect(cornerRadius: 10))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle())
+                .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(c.surface)
+        .hideNavigationBar()
     }
 }

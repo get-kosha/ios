@@ -5,7 +5,7 @@ import Design
 public enum MainTab: String, CaseIterable, Hashable, Sendable {
     case overview, activity, recurring, accounts
 
-    var label: String {
+    public var label: String {
         switch self {
         case .overview: L.shell_nav_overview()
         case .activity: L.shell_nav_activity()
@@ -14,7 +14,7 @@ public enum MainTab: String, CaseIterable, Hashable, Sendable {
         }
     }
 
-    var icon: String {
+    public var icon: String {
         switch self {
         case .overview: "chart-pie-slice"
         case .activity: "list-bullets"
