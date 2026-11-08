@@ -168,7 +168,7 @@ struct MainTabs: View {
                 }
                 .navigationSplitViewStyle(.balanced)
             } else {
-                RootTabs(tab: $nav.tab, onAdd: { nav.openAdd() }) { _ in stacks }
+                RootTabs(tab: $nav.tab, showBar: (nav.paths[nav.tab] ?? []).isEmpty, onAdd: { nav.openAdd() }) { _ in stacks }
             }
         }
         .onChange(of: nav.tab) { _, t in visited.insert(t) }

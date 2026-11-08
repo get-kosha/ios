@@ -28,11 +28,17 @@ public enum MainTab: String, CaseIterable, Hashable, Sendable {
 public struct RootTabs<Screen: View>: View {
     @Binding var tab: MainTab
     let onAdd: () -> Void
+    /// The bar shows on the four tab roots only; pushed pages have their own footers, as on Android.
+    let showBar: Bool
     let screen: (MainTab) -> Screen
     @Environment(\.kosha) private var theme
 
-    public init(tab: Binding<MainTab>, onAdd: @escaping () -> Void, @ViewBuilder screen: @escaping (MainTab) -> Screen) {
+    public init(
+        tab: Binding<MainTab>, showBar: Bool = true, onAdd: @escaping () -> Void,
+        @ViewBuilder screen: @escaping (MainTab) -> Screen
+    ) {
         _tab = tab
+        self.showBar = showBar
         self.onAdd = onAdd
         self.screen = screen
     }
@@ -42,8 +48,11 @@ public struct RootTabs<Screen: View>: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(theme.colors.bg)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                TabBar(MainTab.allCases.map { Tab($0, label: $0.label, icon: $0.icon) }, selected: $tab,
-                       addLabel: L.shell_add_transaction(), onAdd: onAdd)
+                if showBar {
+                    TabBar(MainTab.allCases.map { Tab($0, label: $0.label, icon: $0.icon) }, selected: $tab,
+                           addLabel: L.shell_add_transaction(), onAdd: onAdd)
+                        .transition(.move(edge: .bottom))
+                }
             }
     }
 }
