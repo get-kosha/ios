@@ -201,7 +201,6 @@ extension Dashboard.Upcoming {
     }
 }
 
-let staleDays = 60
 
 /// A category's pill in Where it went (vsUsual): fixed, new, or the change against the usual by now.
 enum VsUsual: Equatable {

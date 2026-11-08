@@ -543,14 +543,14 @@ private struct ComingUp: View {
                     .accessibilityElement(children: .combine)
                 }
                 Hairline()
-                LinkRow(L.app_ov_all_recurring()) { nav.open(.recurring) }
+                OverviewLinkRow(L.app_ov_all_recurring()) { nav.open(.recurring) }
             }
         }
     }
 }
 
 /// A centred link at the foot of a card, like "All in Recurring →".
-private struct LinkRow: View {
+private struct OverviewLinkRow: View {
     let label: String
     let action: () -> Void
     @Environment(\.kosha) private var theme
@@ -614,7 +614,7 @@ private struct WhereItWent: View {
                     MoneyText(rest.reduce(0) { $0 + $1.total }, d.primary, font: .figure(13, .regular), color: c.ink2)
                 }
             }
-            LinkRow(L.overview_all_activity()) { nav.openActivity(ActivitySearch(month: Month(d.month))) }
+            OverviewLinkRow(L.overview_all_activity()) { nav.openActivity(ActivitySearch(month: Month(d.month))) }
         }
     }
 }

@@ -59,15 +59,6 @@ struct CreatedAccount: Codable, Sendable { var id: String }
 /// Investments whose value is older than this ask to be updated (accounts.tsx STALE_DAYS).
 let staleDays = 60
 
-/// What a currency exchange cost against the market rate that day (core.ts exchange). Values in minor units.
-struct FxCost: Equatable {
-    var converted: Int64
-    var rate: Double
-    var rateCost: Double?
-    var totalCost: Double
-    var costPct: Double
-}
-
 /// A net worth chart layer: an account's part, or all unrealized gains on top (`id` nil).
 struct Layer: Equatable {
     var id: String?
@@ -77,13 +68,7 @@ struct Layer: Equatable {
 enum AccountsMath {
     /// `total` left the source account, `fee` of it was charged, and the rest became `received` (core.ts exchange).
     static func exchange(_ total: Int64, fee: Int64, received: Int64, marketRate: Double?) -> FxCost {
-        let converted = Int64(total.magnitude) - Int64(fee.magnitude)
-        let rate = converted > 0 ? Double(received.magnitude) / Double(converted) : 0
-        // What the rate gap cost, in the source currency: the converted amount at market minus what arrived.
-        let rateCost = marketRate.flatMap { $0 > 0 ? (Double(converted) * $0 - Double(received.magnitude)) / $0 : nil }
-        let totalCost = rateCost.map { Double(fee.magnitude) + $0 } ?? Double(fee.magnitude)
-        return FxCost(converted: converted, rate: rate, rateCost: rateCost, totalCost: totalCost,
-                      costPct: total != 0 ? totalCost / Double(total.magnitude) * 100 : 0)
+        Model.exchange(total: total, fee: fee, received: received, marketRate: marketRate)
     }
 
     /// What an account is worth in lists, in its currency (core.ts accountWorth); a card shows what it owes.

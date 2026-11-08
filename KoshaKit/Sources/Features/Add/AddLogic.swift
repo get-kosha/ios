@@ -33,25 +33,6 @@ func keypadInput(_ minor: Int64, decimals: Int) -> String {
     return NSDecimalNumber(decimal: value).stringValue
 }
 
-/// A transfer's cost (core.ts exchange): `total` left From, `fee` of it was charged, the rest became `received`.
-struct Exchange: Equatable {
-    let converted: Int64
-    let rate: Double
-    let rateCost: Double?
-    let totalCost: Double
-    let costPct: Double
-}
-
-func exchange(total: Int64, fee: Int64, received: Int64, marketRate: Double?) -> Exchange {
-    let converted = abs(total) - abs(fee)
-    let rate = converted > 0 ? Double(abs(received)) / Double(converted) : 0
-    // What the rate gap cost, in the source currency: the converted amount at market minus what arrived, valued at market.
-    let rateCost = marketRate.flatMap { $0 == 0 ? nil : (Double(converted) * $0 - Double(abs(received))) / $0 }
-    let totalCost = Double(abs(fee)) + (rateCost ?? 0)
-    return Exchange(converted: converted, rate: rate, rateCost: rateCost, totalCost: totalCost,
-                    costPct: total != 0 ? totalCost / Double(abs(total)) * 100 : 0)
-}
-
 /// A rate as the web writes it (core.ts fmtRate): 2 decimals from 100, 4 from 1, else 4 significant digits. Returned
 /// as the number of decimals to show and the rounded value.
 func fmtRate(_ r: Double) -> (value: Double, decimals: Int) {
@@ -93,7 +74,7 @@ struct TransferSides: Equatable {
     let cross: Bool
 
     var rate: Double { cross && converted > 0 ? Double(received) / Double(converted) : 1 }
-    var cost: Exchange { exchange(total: converted + fee, fee: fee, received: received, marketRate: cross ? market : nil) }
+    var cost: FxCost { exchange(total: converted + fee, fee: fee, received: received, marketRate: cross ? market : nil) }
 }
 
 func transferSides(

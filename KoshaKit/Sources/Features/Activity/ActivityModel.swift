@@ -120,22 +120,6 @@ extension Transaction {
     }
 }
 
-/// What an exchange cost against the market rate (core.ts exchange()), in the source currency's minor units.
-struct FxCost: Equatable {
-    var converted: Int64
-    var rateCost: Double?
-    var totalCost: Double
-    var costPct: Double
-}
-
-func exchange(total: Int64, fee: Int64, received: Int64, marketRate: Double?) -> FxCost {
-    let converted = abs(total) - abs(fee)
-    let rateCost = marketRate.flatMap { $0 == 0 ? nil : (Double(converted) * $0 - Double(abs(received))) / $0 }
-    let totalCost = rateCost.map { Double(abs(fee)) + $0 } ?? Double(abs(fee))
-    return FxCost(converted: converted, rateCost: rateCost, totalCost: totalCost,
-                  costPct: total != 0 ? totalCost / Double(abs(total)) * 100 : 0)
-}
-
 /// An amount as the keypad types it: 2000 minor units is "20" (decimals only when there are cents).
 func plainAmount(_ minor: Int64) -> String {
     NSDecimalNumber(decimal: Decimal(minor.magnitude) / 100).stringValue

@@ -155,7 +155,7 @@ struct AskScreen: View {
             if chat.said.contains(where: { if case .answer = $0 { true } else { false } }) {
                 Text(L.app_ask_check()).kFont(.xs).foregroundStyle(c.ink3).frame(maxWidth: .infinity)
             } else {
-                PrivacyLine(provider: kosha.meta?.aiModel?.provider)
+                AskPrivacyLine(provider: kosha.meta?.aiModel?.provider)
             }
         }
         .padding(.horizontal, 16)
@@ -189,7 +189,7 @@ struct AskScreen: View {
 }
 
 /// "Kosha sends only what you share with Anthropic.", "what you share" opening Settings › AI › What AI can see.
-struct PrivacyLine: View {
+struct AskPrivacyLine: View {
     let provider: String?
     @Environment(Navigator.self) private var nav
     @Environment(\.kosha) private var theme
