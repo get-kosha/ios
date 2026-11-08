@@ -273,12 +273,14 @@ private struct YouStep: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 FieldLabel(L.welcome_currency_title())
-                SettingsPickField(nil, "\(currency.uppercased())  \(currencyName(currency, theme.locale))") { sheet = IdentifiedString(id: "currency") }
+                TwoPartField(main: currency.uppercased(), detail: currencyName(currency, theme.locale), mono: true) {
+                    sheet = IdentifiedString(id: "currency")
+                }
                 SettingsHint(L.welcome_currency_description())
             }
             VStack(alignment: .leading, spacing: 6) {
                 FieldLabel(L.welcome_tz_title())
-                SettingsPickField(nil, "\(zoneCity(tz))  ·  \(tz)") { sheet = IdentifiedString(id: "zone") }
+                TwoPartField(main: zoneCity(tz), detail: tz, mono: false) { sheet = IdentifiedString(id: "zone") }
                 SettingsHint(L.welcome_tz_description())
             }
         }
@@ -326,6 +328,8 @@ private struct AccountCard: View {
                 Chip(typeLabel(row.type), soft: true, small: true, action: { sheet = IdentifiedString(id: "type") }) {
                     PhIcon("caret-down", size: 14)
                 }
+                // The caret follows the type's name, as on the board.
+                .environment(\.layoutDirection, .rightToLeft)
                 Chip(row.currency.uppercased(), soft: true, small: true, action: { sheet = IdentifiedString(id: "currency") })
                 IconButton("x", label: named.isEmpty ? L.welcome_remove_this_account() : L.welcome_remove(name: named), action: onRemove)
             }
@@ -412,6 +416,34 @@ private struct AccountCard: View {
         case .credit: L.welcome_type_card()
         case .investment: L.welcome_type_investment()
         }
+    }
+}
+
+/// A picker field with its value in ink and a detail in ink3 ("EUR  Euro", "Berlin  Europe/Berlin").
+private struct TwoPartField: View {
+    let main: String
+    let detail: String
+    let mono: Bool
+    let action: () -> Void
+    @Environment(\.kosha) private var theme
+
+    var body: some View {
+        let c = theme.colors
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(main).kFont(mono ? .sans(16, .medium) : .sans(16, .regular)).foregroundStyle(c.ink)
+                Text(detail).kFont(mono ? .sans(16, .regular) : .small).foregroundStyle(c.ink3).lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                PhIcon("caret-right", size: 16, color: c.ink3)
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 48)
+            .background(c.surface, in: .rect(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(c.line))
+            .contentShape(.rect(cornerRadius: 14))
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityLabel("\(main), \(detail)")
     }
 }
 
