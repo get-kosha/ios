@@ -90,11 +90,19 @@ Anything else found while porting gets listed here.
 
 | # | Milestone | Status |
 |---|---|---|
-| I0 | iOS server bits in `../kosha-web` | Done: `webcredentials` added on `feat/ios-app` (commit `1a8f8f9`), all five checks pass, checked live on `npm run dev`. Not pushed. |
-| I1 | Project, KoshaKit and design system: XcodeGen project, tokens, fonts, Phosphor, category icons, String Catalog, every component on the Inputs kit screen, tab bar shell, launch screen, app icon, `Keypad` and `Money` with Android's test cases | Next |
-| M2 | Sign-in, Keychain, serialised refresh, revoke, own server, demo, app lock, app-switcher cover | |
-| M3 | Cache-first data and the outbox, BGTaskScheduler and NWPathMonitor | |
-| M4–M9 | The screens, in HANDOFF §9's order | |
-| M10 | WidgetKit and App Intents, App Shortcuts, iPad sidebar, XCUITest tour in light and dark | |
+| I0 | iOS server bits in `../kosha-web` | Done: `webcredentials` in apple-app-site-association (`1a8f8f9`, now on main and live on getkosha.app with team `654ASRW868`). |
+| I1 | Project, KoshaKit and design system | Done: XcodeGen project, KoshaKit (Model, API, Store, Design, Features), tokens from k.css (light, dark, five accents, s1–s6, neutral mode, density, figures, motion), Geist and Geist Mono, Phosphor regular and fill, category icons, the String Catalog, every component on the debug Inputs kit (`-InputsKit YES`), the tab bar shell, launch screen and app icon. `Keypad` and `Money` pass Android's test cases. |
+| M2 | Sign-in and session | Done in code: ASWebAuthenticationSession (shared, not ephemeral) with the HTTPS callback on getkosha.app and the `app.getkosha` scheme elsewhere, PKCE with state and `iss` checks, own server with a live check, demo, Keychain tokens, serialised refresh (an actor) that keeps the session on 429/408/5xx, revoke on sign-out, Launch, Finishing, SignInError, app lock (Face ID, Touch ID or passcode) and the app-switcher cover. To check on the simulator. |
+| M3 | Data layer | Done in code: typed client, cache-first `Kosha.load` (JSON files in the app group), the outbox with client ids (kept on 429/5xx and offline, 409 checked), NWPathMonitor and a BGAppRefreshTask, the shared month and currency, preferences applied at once, banners, the header with the month, currency and account-menu sheets, shared pickers (account, category, date and time, amount). |
+| M4–M9 | Screens | In progress: built in parallel by area (Add; Overview, Search and Ask; Activity; Recurring and Accounts; Reconcile and Import; Settings, Welcome and AI settings). |
+| M10 | Polish and release | Partly done: the quick-add widget (reads a snapshot the app writes, no server calls), App Shortcuts (Add expense, Add income, Scan a receipt) with phrases from the web's messages, app.getkosha://add deep links, the iPad sidebar, and the XCUITest tour (`TourTests`, debug-only demo sign-in through launch arguments). |
 
 Each screen is done when it matches its PNG in light and dark, works in neutral mode and every accent, takes every string from the String Catalog, has VoiceOver labels, holds up at the largest Dynamic Type size, reads from the cache offline, is read-only for the demo and shows no trace of AI when AI is off.
+
+## Notes from building
+
+- **Strings.** `scripts/sync-strings.py` keeps each message's `{name}` variables and `{#tag}` markup in the catalog and fills them by name in `L`, so messages read as on the web. Plurals are stored one entry per case (`key|one`, `key|any`, and `key|one|any` for the import messages with two selectors) and picked with the language's CLDR rules through a `kosha.plural` probe entry, so the two-selector messages Android couldn't express work here. The app target gets its own small catalogs for App Intents titles and Siri phrases (`Kosha/Localizable.xcstrings`, `Kosha/AppShortcuts.xcstrings`). iOS-only strings live in the web repo's `messages/<locale>/app-ios-*.json`.
+- **Swift Codable has no field defaults.** Models use `@D` (the type's default when a field is missing or null) and `@Rounded` (whole minor units from the web's unrounded reads), Android's `= default` and `RoundedLong`.
+- **The package builds for the Mac too,** so `swift test` runs there. iOS-only modifiers go through `Design/Platform.swift`.
+- **Testing device:** iPhone 18 Pro simulator, which needs an iOS runtime newer than 27.1.
+- **Web repo:** `npm run db:demo` fails on Node 26 (`ERR_UNSUPPORTED_ESM_URL_SCHEME` for a `virtual:` import); the local database already had the demo account.
