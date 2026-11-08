@@ -153,6 +153,7 @@ struct SettingsList: View {
     @Environment(Kosha.self) private var kosha
     @Environment(Navigator.self) private var nav
     @Environment(\.kosha) private var theme
+    @Environment(\.openURL) private var openURL
     @State private var query = ""
     @State private var account: AccountSummary?
     @State private var access: ApiAccess?
@@ -189,6 +190,11 @@ struct SettingsList: View {
                                 sectionRow(sections[i])
                             }
                         }
+                    }
+                }
+                Rows {
+                    NavRow(L.settings_report_issue(), description: L.settings_report_issue_desc(), icon: "bug", external: true) {
+                        openURL(issuesURL)
                     }
                 }
                 Text(L.app_set_footer(version: version.0, build: version.1, server: serverHost(kosha.server)))
@@ -272,6 +278,9 @@ struct SettingsList: View {
         }
     }
 }
+
+/// Where "Report a problem" goes: the iOS app's issues on GitHub, opened in the browser.
+private let issuesURL = URL(string: "https://github.com/get-kosha/ios/issues")!
 
 extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }

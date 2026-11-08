@@ -191,6 +191,9 @@ extension L {
     public static func auth_app_callback_title() -> String { L.text("auth_app_callback_title", [:]) }
     public static func auth_app_callback_body() -> String { L.text("auth_app_callback_body", [:]) }
     public static func auth_app_callback_open() -> String { L.text("auth_app_callback_open", [:]) }
+    public static func auth_error_page_title() -> String { L.text("auth_error_page_title", [:]) }
+    public static func auth_error_title() -> String { L.text("auth_error_title", [:]) }
+    public static func auth_error_body() -> String { L.text("auth_error_body", [:]) }
     public static func shell_nav_overview() -> String { L.text("shell_nav_overview", [:]) }
     public static func shell_nav_activity() -> String { L.text("shell_nav_activity", [:]) }
     public static func shell_nav_recurring() -> String { L.text("shell_nav_recurring", [:]) }
@@ -1558,6 +1561,8 @@ extension L {
     public static func settings_danger_count_categories(count: Int) -> String { L.plural("settings_danger_count_categories", [count], ["count": String(count)]) }
     public static func settings_events_transactions(count: Int) -> String { L.plural("settings_events_transactions", [count], ["count": String(count)]) }
     public static func settings_events_delete_body(count: Int) -> String { L.plural("settings_events_delete_body", [count], ["count": String(count)]) }
+    public static func settings_report_issue() -> String { L.text("settings_report_issue", [:]) }
+    public static func settings_report_issue_desc() -> String { L.text("settings_report_issue_desc", [:]) }
     public static func settings_rec_group() -> String { L.text("settings_rec_group", [:]) }
     public static func settings_rec_auto_title() -> String { L.text("settings_rec_auto_title", [:]) }
     public static func settings_rec_auto_description() -> String { L.text("settings_rec_auto_description", [:]) }
