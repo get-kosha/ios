@@ -40,9 +40,11 @@ private struct AddForm: View {
             ScrollView {
                 VStack(spacing: 0) {
                     header
-                    Spacer(minLength: 8)
+                    // The amount block is 262pt on the board; the room left over sits above the keypad, so the
+                    // keypad stays under the thumb. Short screens and big text shrink it, then scroll.
                     amount
-                    Spacer(minLength: 16)
+                        .padding(.horizontal, 16)
+                        .frame(height: payeeFocused ? nil : amountHeight(proxy.size.height))
                     VStack(spacing: 12) {
                         tiles
                         if model.transfer {
@@ -51,14 +53,18 @@ private struct AddForm: View {
                             payeeField
                             if payeeFocused && !model.payee.trimmingCharacters(in: .whitespaces).isEmpty { suggestions }
                         }
-                        if !payeeFocused {
+                    }
+                    .padding(.horizontal, 16)
+                    if !payeeFocused {
+                        Spacer(minLength: 12)
+                        VStack(spacing: 12) {
                             AmountKeypad(input: $model.input, decimals: model.decimals)
                             buttons
                         }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
                 }
+                .padding(.bottom, 8)
                 .frame(minHeight: proxy.size.height)
             }
             .scrollBounceBehavior(.basedOnSize)
@@ -113,7 +119,7 @@ private struct AddForm: View {
             }
         }
         .padding(.horizontal, 8)
-        .frame(minHeight: 56)
+        .frame(minHeight: 52)
     }
 
     // MARK: Amount
@@ -129,17 +135,53 @@ private struct AddForm: View {
             .accessibilityElement(children: .combine)
         } else {
             VStack(spacing: 8) {
-                if let filled = model.filled, !payeeFocused { FilledNote(model: model, filled: filled).padding(.horizontal, 16) }
-                AmountDisplay(input: model.input, currency: model.currency, kind: model.kind)
-                    .money()
+                if let filled = model.filled, !payeeFocused { FilledNote(model: model, filled: filled) }
+                amountLine
                 if !payeeFocused {
-                    pills.padding(.horizontal, 16)
+                    pills
                     if let note = amountNote {
-                        Text(note).kFont(.small).foregroundStyle(c.ink2).multilineTextAlignment(.center).padding(.horizontal, 16)
-                            .money()
+                        Text(note).kFont(.xs).foregroundStyle(c.ink3).multilineTextAlignment(.center)
+                            .frame(minHeight: 15).money()
                     }
                 }
             }
+        }
+    }
+
+    /// The amount block's height: 262 as on the board, less on short screens (52 header, 58 tiles, 12 + 48 payee,
+    /// 12 + 248 keypad, 12 + 52 buttons and the bottom gap).
+    private func amountHeight(_ total: CGFloat) -> CGFloat { min(262, max(150, total - 502)) }
+
+    /// The expression when it has an operator, then the amount at 60 (46 when long), with the caret while it's empty.
+    private var amountLine: some View {
+        let c = theme.colors
+        let input = model.input
+        let text = amountText(input, currency: model.currency, kind: model.kind, locale: theme.locale)
+        let (grouping, decimal) = Money.separators(theme.locale)
+        // Smaller while the payee is typed, as on AddPayee.
+        let long = text.count > 8 || payeeFocused
+        return VStack(spacing: 8) {
+            if Keypad.hasOperator(input) {
+                Text(Keypad.pretty(input, grouping: grouping, decimal: decimal)).kFont(.expr).foregroundStyle(c.ink3)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+            }
+            HStack(alignment: .center, spacing: 4) {
+                Text(text)
+                    .kFont(long ? .amountLong : .amount)
+                    .foregroundStyle(input.isEmpty ? c.ink3 : model.kind == .income ? c.pos : c.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .contentTransition(.numericText())
+                    // The board sets the amount's line height to its size.
+                    .padding(.vertical, long ? -5 : -6)
+                if input.isEmpty {
+                    RoundedRectangle(cornerRadius: 1).fill(c.selection).frame(width: 2, height: 50).accessibilityHidden(true)
+                }
+            }
+            .money()
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(input.isEmpty ? L.add_amount() : text)
+            .accessibilityAddTraits(.updatesFrequently)
         }
     }
 
@@ -318,37 +360,50 @@ private struct AddForm: View {
 
     // MARK: Transfer
 
-    /// "Fee and rate" with what was charged and what arrives (AddTransfer).
+    /// "Fee and rate" with what was charged and what arrives (AddTransfer): the fee in ink2, what arrives in ink with
+    /// "arrives" in ink3, figures in the number font.
     private var feeRow: some View {
         let c = theme.colors
         let s = model.sides
-        let to = model.toAccount
-        var parts: [String] = []
-        if s.cross, let to {
-            if s.fee > 0 { parts.append(L.app_add_fee_amount(amount: Money.format(s.fee, model.currency, theme.locale))) }
-            parts.append(L.add_arrives(amount: Money.format(s.received, to.currency, theme.locale)))
-        } else if s.fee > 0 {
-            parts.append(L.app_add_fee_amount(amount: Money.format(s.fee, model.currency, theme.locale)))
+        let locale = theme.locale
+        var value = AttributedString()
+        func add(_ text: String, _ color: Color, figure: Bool) {
+            var part = AttributedString(text)
+            part.foregroundColor = color
+            part.font = (figure ? KFont.num : KFont.body).font(theme)
+            value += part
+        }
+        if s.fee > 0 || (s.cross && model.toAccount != nil) {
+            if s.fee > 0 { add(L.app_add_fee_amount(amount: Money.format(s.fee, model.currency, locale)), c.ink2, figure: true) }
+            if s.cross, let to = model.toAccount {
+                if s.fee > 0 { add(" · ", c.ink3, figure: false) }
+                // "{amount} arrives": the amount in ink, the word in ink3.
+                let marker = "\u{1}"
+                let parts = L.add_arrives(amount: marker).components(separatedBy: marker)
+                add(parts.first ?? "", c.ink3, figure: false)
+                add(Money.format(s.received, to.currency, locale), c.ink, figure: true)
+                add(parts.count > 1 ? parts[1] : "", c.ink3, figure: false)
+            }
         } else {
-            parts.append(L.add_fee_none())
+            add(L.add_fee_none(), c.ink3, figure: false)
         }
         let title = s.cross ? L.add_fee_and_rate() : L.add_fee()
         return Button { model.sheet = .fee } label: {
             HStack(spacing: 10) {
-                Text(title).foregroundStyle(c.ink2).lineLimit(1)
-                Text(parts.joined(separator: " · ")).kFont(.small).foregroundStyle(c.ink3).lineLimit(2)
+                Text(title).kFont(.sans(16, .regular)).foregroundStyle(c.ink2).lineLimit(1)
+                Text(value).lineLimit(2).minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity, alignment: .trailing).multilineTextAlignment(.trailing).money()
                 PhIcon("caret-right", size: 16, color: c.ink3)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             .frame(minHeight: 48)
             .background(c.surface, in: .rect(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(c.line))
             .contentShape(.rect(cornerRadius: 14))
         }
         .buttonStyle(PressStyle())
-        .accessibilityLabel("\(title), \(parts.joined(separator: ", "))")
+        .accessibilityLabel("\(title), \(String(value.characters))")
     }
 
     // MARK: Buttons
@@ -358,6 +413,7 @@ private struct AddForm: View {
             // Sized to its label, so it never cuts off at large text sizes; the primary button takes the rest.
             KButton(L.add_another(), style: .secondary) { model.save(again: true) }
                 .fixedSize(horizontal: true, vertical: false)
+                .frame(minWidth: 132)
                 .disabled(!model.ready || model.saving)
             KButton(model.primaryLabel) { model.tapPrimary() }
                 .disabled(model.minor == nil || model.saving)
