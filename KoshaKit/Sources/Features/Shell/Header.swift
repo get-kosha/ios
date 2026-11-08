@@ -298,7 +298,7 @@ public struct CurrencySheet: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
                                     Text(currencyName(code, theme.locale)).kFont(on ? .head : .body)
-                                    Text(code.uppercased()).kFont(.num).foregroundStyle(c.ink3)
+                                    Text(code.uppercased()).kFont(.body).foregroundStyle(c.ink3)
                                 }
                                 Text(code == m.primaryCurrency ? L.app_ov_main_currency()
                                      : "1 \(m.primaryCurrency.uppercased()) = \(rateText(m.rates[code], m.rates[m.primaryCurrency])) \(code.uppercased())")
