@@ -21,6 +21,7 @@ let package = Package(
         .testTarget(name: "ModelTests", dependencies: ["Model"]),
         .testTarget(name: "DesignTests", dependencies: ["Design"]),
         .testTarget(name: "StoreTests", dependencies: ["Store", "Model"]),
+        .testTarget(name: "FeaturesTests", dependencies: ["Features", "Model", "Design"]),
     ],
     swiftLanguageModes: [.v6]
 )
