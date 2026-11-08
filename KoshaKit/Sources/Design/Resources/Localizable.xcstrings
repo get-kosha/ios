@@ -30446,6 +30446,12 @@
             "value": "Demandé à l'ouverture de Kosha. Votre code fonctionne aussi."
           }
         },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kosha खोलते समय पूछता है। पासकोड भी चलता है।"
+          }
+        },
         "it": {
           "stringUnit": {
             "state": "translated",
@@ -30456,6 +30462,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Koshaを開くときに確認します。パスコードも使えます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kosha를 열 때 확인합니다. 기기 암호도 쓸 수 있습니다."
           }
         },
         "nl": {
@@ -30511,6 +30523,12 @@
             "value": "Déverrouiller avec Face ID"
           }
         },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face ID से अनलॉक करें"
+          }
+        },
         "it": {
           "stringUnit": {
             "state": "translated",
@@ -30521,6 +30539,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Face IDでロック解除"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face ID로 잠금 해제"
           }
         },
         "nl": {
@@ -30576,6 +30600,12 @@
             "value": "Déverrouiller avec votre code"
           }
         },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पासकोड से अनलॉक करें"
+          }
+        },
         "it": {
           "stringUnit": {
             "state": "translated",
@@ -30586,6 +30616,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスコードでロック解除"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "암호로 잠금 해제"
           }
         },
         "nl": {
@@ -30641,6 +30677,12 @@
             "value": "Déverrouiller avec Touch ID"
           }
         },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch ID से अनलॉक करें"
+          }
+        },
         "it": {
           "stringUnit": {
             "state": "translated",
@@ -30651,6 +30693,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Touch IDでロック解除"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch ID로 잠금 해제"
           }
         },
         "nl": {
@@ -30706,6 +30754,12 @@
             "value": "Configurez d'abord un code sur cet appareil."
           }
         },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पहले इस डिवाइस पर पासकोड सेट करें।"
+          }
+        },
         "it": {
           "stringUnit": {
             "state": "translated",
@@ -30716,6 +30770,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "先にこのデバイスでパスコードを設定してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먼저 이 기기에 암호를 설정하세요."
           }
         },
         "nl": {
