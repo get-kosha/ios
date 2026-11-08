@@ -25,6 +25,7 @@ targets:
     dependencies:
       - package: KoshaKit
         product: KoshaKit
+      - target: KoshaWidgets
     entitlements:
       path: Kosha/Kosha.entitlements
       properties:
@@ -64,6 +65,29 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
+  KoshaWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: KoshaWidgets
+    dependencies:
+      - package: KoshaKit
+        product: KoshaWidgetKit
+    entitlements:
+      path: KoshaWidgets/KoshaWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.getkosha
+    info:
+      path: KoshaWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Kosha
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.getkosha.widgets
+        TARGETED_DEVICE_FAMILY: "1,2"
   KoshaUITests:
     type: bundle.ui-testing
     platform: iOS

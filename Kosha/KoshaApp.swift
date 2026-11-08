@@ -1,5 +1,6 @@
 import SwiftUI
 import BackgroundTasks
+import WidgetKit
 import Store
 import Features
 
@@ -21,6 +22,7 @@ struct KoshaApp: App {
                 task.setTaskCompleted(success: kosha.waiting.isEmpty)
             }
         }
+        kosha.widgetChanged = { WidgetCenter.shared.reloadAllTimelines() }
         kosha.scheduleSend = {
             let request = BGAppRefreshTaskRequest(identifier: outboxTask)
             request.earliestBeginDate = Date(timeIntervalSinceNow: 60)

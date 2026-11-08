@@ -2114,6 +2114,23 @@ extension L {
     public static func app_add_repeat_note() -> String { L.text("app_add_repeat_note", [:]) }
     public static func app_add_repeat_offline() -> String { L.text("app_add_repeat_offline", [:]) }
     public static func app_add_repeat_label(frequency: String) -> String { L.text("app_add_repeat_label", ["frequency": frequency]) }
+    public static func app_ios_add_weekly() -> String { L.text("app_ios_add_weekly", [:]) }
+    public static func app_ios_add_monthly() -> String { L.text("app_ios_add_monthly", [:]) }
+    public static func app_ios_add_yearly() -> String { L.text("app_ios_add_yearly", [:]) }
+    public static func app_ios_add_rule_week(weekday: String) -> String { L.text("app_ios_add_rule_week", ["weekday": weekday]) }
+    public static func app_ios_add_rule_month(day: String) -> String { L.text("app_ios_add_rule_month", ["day": day]) }
+    public static func app_ios_add_rule_year(date: String) -> String { L.text("app_ios_add_rule_year", ["date": date]) }
+    public static func app_ios_add_list_as() -> String { L.text("app_ios_add_list_as", [:]) }
+    public static func app_ios_add_auto_hint() -> String { L.text("app_ios_add_auto_hint", [:]) }
+    public static func app_ios_add_repeat_today(date: String, list: String) -> String { L.text("app_ios_add_repeat_today", ["date": date, "list": list]) }
+    public static func app_ios_add_repeat_past(date: String, list: String) -> String { L.text("app_ios_add_repeat_past", ["date": date, "list": list]) }
+    public static func app_ios_add_repeat_future(date: String, list: String) -> String { L.text("app_ios_add_repeat_future", ["date": date, "list": list]) }
+    public static func app_ios_add_recurring_income() -> String { L.text("app_ios_add_recurring_income", [:]) }
+    public static func app_ios_add_recurring_transfer() -> String { L.text("app_ios_add_recurring_transfer", [:]) }
+    public static func app_ios_add_toast_repeats(amount: String, name: String, frequency: String) -> String { L.text("app_ios_add_toast_repeats", ["amount": amount, "name": name, "frequency": frequency]) }
+    public static func app_shortcut_add_expense(app: String) -> String { L.text("app_shortcut_add_expense", ["app": app]) }
+    public static func app_shortcut_add_income(app: String) -> String { L.text("app_shortcut_add_income", ["app": app]) }
+    public static func app_shortcut_scan(app: String) -> String { L.text("app_shortcut_scan", ["app": app]) }
     public static func app_rec_asks_each_time() -> String { L.text("app_rec_asks_each_time", [:]) }
     public static func app_rec_asks_that_day() -> String { L.text("app_rec_asks_that_day", [:]) }
     public static func app_rec_attach_bill() -> String { L.text("app_rec_attach_bill", [:]) }

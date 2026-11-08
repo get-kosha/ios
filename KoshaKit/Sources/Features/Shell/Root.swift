@@ -64,7 +64,10 @@ public struct KoshaRoot: View {
                     kosha.sendOutbox()
                 case .active:
                     lock.foregrounded()
-                    Task { await kosha.refresh() }
+                    Task {
+                        await kosha.refresh()
+                        await kosha.updateWidget(language: L.language)
+                    }
                 default: break
                 }
             }
@@ -74,10 +77,29 @@ public struct KoshaRoot: View {
                     kosha.rejected.removeAll()
                 }
             }
+            .onOpenURL { open($0) }
+            .onChange(of: AppActions.shared.pending) { _, url in
+                if let url {
+                    AppActions.shared.pending = nil
+                    open(url)
+                }
+            }
             .task {
                 await kosha.refresh()
                 launching = false
+                await kosha.updateWidget(language: L.language)
             }
+    }
+
+    /// Deep links from the widget, Home Screen quick actions and App Shortcuts: app.getkosha://add?kind=income&scan=1.
+    /// The sign-in fallback (app.getkosha:/oauth/callback) is handled by its web authentication session, not here.
+    private func open(_ url: URL) {
+        guard url.scheme == "app.getkosha", url.host == "add", kosha.signedIn else { return }
+        let q = Dictionary(
+            (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value ?? "") },
+            uniquingKeysWith: { a, _ in a }
+        )
+        nav.openAdd(AddRequest(kind: q["kind"].flatMap(EntryKind.init(rawValue:)), scan: q["scan"] == "1"))
     }
 
     @ViewBuilder

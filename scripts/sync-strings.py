@@ -22,6 +22,13 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB = Path(sys.argv[1] if len(sys.argv) > 1 else ROOT.parent / "kosha-web")
 CATALOG = ROOT / "KoshaKit/Sources/Design/Resources/Localizable.xcstrings"
 SWIFT = ROOT / "KoshaKit/Sources/Design/Strings.swift"
+# The app target's own catalogs: App Intents read their titles and Siri phrases from the main bundle at build time.
+APP_STRINGS = ROOT / "Kosha/Localizable.xcstrings"
+APP_SHORTCUTS = ROOT / "Kosha/AppShortcuts.xcstrings"
+# Message keys the app target's intents use as titles, keyed in its catalog by their English text.
+INTENT_TITLES = ["add_add_expense", "add_add_income", "add_scan_receipt"]
+# Siri phrases: `{app}` becomes the app's name.
+SHORTCUT_PHRASES = ["app_shortcut_add_expense", "app_shortcut_add_income", "app_shortcut_scan"]
 # The same areas as the Android app: landing, demos and legal are the web's marketing pages.
 AREAS = ["common", "auth", "overview", "transactions", "add", "accounts", "reconcile", "import", "welcome",
          "settings", "settings-sections", "ai", "site", "server", "app"]
@@ -118,6 +125,18 @@ def main():
         "// swiftlint:disable all\n\n"
         "extension L {\n" + "\n".join(funcs) + "\n}\n"
     )
+    def catalog_of(keys, convert):
+        out = {}
+        for key in keys:
+            out[convert(english[key])] = {
+                "extractionState": "manual",
+                "localizations": {loc: unit(convert(per_locale[loc][key])) for loc in locales if key in per_locale[loc]},
+            }
+        return {"sourceLanguage": "en", "strings": out, "version": "1.0"}
+
+    APP_STRINGS.write_text(json.dumps(catalog_of(INTENT_TITLES, lambda t: t), ensure_ascii=False, indent=2) + "\n")
+    phrase = lambda t: t.replace("{app}", "${applicationName}")
+    APP_SHORTCUTS.write_text(json.dumps(catalog_of(SHORTCUT_PHRASES, phrase), ensure_ascii=False, indent=2) + "\n")
     print(f"{len(english)} messages, {len(locales)} locales, {len(strings)} catalog entries")
 
 

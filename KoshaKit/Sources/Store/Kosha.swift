@@ -53,6 +53,8 @@ public final class Kosha {
     /// Called when the outbox has entries and the connection is back or the app goes to the background; the app
     /// schedules a background task there.
     @ObservationIgnored public var scheduleSend: (() -> Void)?
+    /// Called after the widget's snapshot changes; the app reloads the widget's timelines there.
+    @ObservationIgnored public var widgetChanged: (() -> Void)?
     @ObservationIgnored private let monitor = NWPathMonitor()
 
     /// The language for requests: the `language` setting, else the phone's. Set by the app.
