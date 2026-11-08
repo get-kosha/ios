@@ -79,7 +79,7 @@ The design boards are in the Android repo, in `../kosha-android/design/`:
 
 ## Release
 
-Xcode Cloud runs the `Kosha` scheme's tests on every push to `main`. A `v*` tag archives the app and uploads it to TestFlight. `ci_scripts/ci_post_clone.sh` installs XcodeGen and generates the project first.
+Every push to `main` makes a new build: Xcode Cloud archives the app and uploads it to App Store Connect. `ci_scripts/ci_post_clone.sh` installs XcodeGen and generates the project first.
 
 To upload by hand, run `scripts/release.sh`. It archives with automatic signing for team `654ASRW868` and uploads to App Store Connect. The build number is the commit count, and the version is `MARKETING_VERSION` in `project.yml`.
 
