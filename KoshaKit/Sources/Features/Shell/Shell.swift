@@ -293,6 +293,15 @@ extension View {
 }
 
 extension Kosha {
+    /// Currencies the header switch cycles through: the main one plus active accounts' currencies, in the saved order
+    /// (shell.tsx currencyOptions). Single-currency users get one, and the switch hides.
+    public var currencyOptions: [String] {
+        guard let m = meta else { return [] }
+        var used = [m.primaryCurrency]
+        for w in m.wallets where !w.isArchived && !used.contains(w.currency) { used.append(w.currency) }
+        return m.order.filter(used.contains) + used.filter { !m.order.contains($0) }
+    }
+
     /// Whether this account can change anything: false for the demo.
     public var canWrite: Bool { !demo }
 

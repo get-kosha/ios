@@ -64,7 +64,7 @@ public struct MainHeader<Action: View>: View {
                 Spacer(minLength: 4)
             }
             if showCurrency, let m = kosha.meta {
-                let list = ([m.primaryCurrency] + m.order).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+                let list = kosha.currencyOptions
                 let shown = kosha.display
                 if list.count > 1 {
                     let following = list[((list.firstIndex(of: shown) ?? 0) + 1) % list.count]
@@ -282,7 +282,7 @@ public struct CurrencySheet: View {
     public var body: some View {
         let c = theme.colors
         if let m = kosha.meta {
-            let list = ([m.primaryCurrency] + m.order).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+            let list = kosha.currencyOptions
             VStack(alignment: .leading, spacing: 0) {
                 SheetHeader(L.app_ov_show_totals_in(), onClose: close)
                 Card(tight: true) {
