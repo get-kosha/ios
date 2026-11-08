@@ -61,13 +61,14 @@ public enum Money {
         return (f.groupingSeparator, f.decimalSeparator)
     }
 
-    /// The amount as a screen reader says it: "minus 29 euros 57" style, through the language's spelled currency.
+    /// The amount as a screen reader says it, with the currency's name: "minus 29.57 euros". (NumberFormatter's plural
+    /// currency style reads the locale's own currency whatever code it's given, so it said "pounds" for euros.)
     public static func spoken(_ minor: Int64, _ currency: String, _ locale: Locale) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currencyPlural
-        f.locale = locale
-        f.currencyCode = currency.uppercased()
-        let text = f.string(from: (Decimal(minor.magnitude) / 100) as NSDecimalNumber) ?? ""
+        let value = Decimal(minor.magnitude) / 100
+        let style = Decimal.FormatStyle.Currency(code: currency.uppercased(), locale: locale)
+            .presentation(.fullName)
+            .precision(.fractionLength(decimals(currency)))
+        let text = value.formatted(style)
         return minor < 0 ? "\(minus)\(text)" : text
     }
 }

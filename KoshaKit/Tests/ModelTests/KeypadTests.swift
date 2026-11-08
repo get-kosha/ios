@@ -124,3 +124,10 @@ private func dec(_ s: String) -> Decimal { Decimal(string: s)! }
     #expect(cleanTag("#Trip!") == "trip")
     #expect(parseTags("#trip, food rome trip") == ["trip", "food", "rome"])
 }
+
+@Test func spokenMoneyNamesTheCurrency() {
+    let uk = Money.locale("en")
+    #expect(Money.spoken(150_069, "eur", uk).contains("euro"))
+    #expect(Money.spoken(-2957, "usd", uk).hasPrefix(Money.minus))
+    #expect(Money.spoken(-2957, "usd", uk).contains("dollar"))
+}
