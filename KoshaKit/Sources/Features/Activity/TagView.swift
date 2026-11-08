@@ -50,12 +50,13 @@ struct TagViewScreen: View {
         }
         .task(id: "\(tag ?? "")/\(eventId ?? "")/\(kosha.version)") {
             let filters = Filters(tag: tag, eventId: eventId)
-            await kosha.load(filters.key(nil), into: { (l: Loaded<TransactionList>) in loaded = l }) { api in
+            let current = kosha.today.monthOf
+            await kosha.load(filters.key(current), into: { (l: Loaded<TransactionList>) in loaded = l }) { api in
                 // ponytail: the entries by day stop at 2,000; a tag or event is rarely bigger. The totals come from the server.
-                var all: TransactionList = try await api.get("/api/v1/transactions", query: filters.params(nil, limit: 500))
+                var all: TransactionList = try await api.get("/api/v1/transactions", query: filters.params(current, limit: 500))
                 var next = all.nextOffset
                 while let offset = next, all.transactions.count < 2000 {
-                    let page: TransactionList = try await api.get("/api/v1/transactions", query: filters.params(nil, offset: offset, limit: 500))
+                    let page: TransactionList = try await api.get("/api/v1/transactions", query: filters.params(current, offset: offset, limit: 500))
                     all.transactions += page.transactions
                     next = page.nextOffset
                 }

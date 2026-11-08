@@ -75,7 +75,7 @@ public struct ActivitySearch: Hashable, Sendable {
     public var type: String?
     public var minAmount: Int64?
     public var maxAmount: Int64?
-    /// Moves the shared month first.
+    /// The month Activity lists. Without one, Activity keeps its default dates, so a search covers every date.
     public var month: Month?
 
     public init(

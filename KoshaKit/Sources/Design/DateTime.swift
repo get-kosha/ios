@@ -57,22 +57,25 @@ extension Day {
 }
 
 /// A month of days: weeks start on the language's first weekday, today is outlined, the picked day is filled in the
-/// selection colour, and a dot marks days that already have entries. Future days stay pickable for planned payments.
-/// `today` comes from the user's time zone, not the phone's.
+/// selection colour, and a dot marks days that already have entries. Future days stay pickable for planned payments;
+/// days before `earliest` can't be picked. `today` comes from the user's time zone, not the phone's.
 public struct MonthGrid: View {
     let month: Month
     let selected: Day?
     let today: Day
     let dots: Set<Day>
+    let earliest: Day?
     let onPick: (Day) -> Void
     @Environment(\.kosha) private var theme
     @ScaledMetric(relativeTo: .body) private var daySize: CGFloat = 38
 
-    public init(month: Month, selected: Day?, today: Day, dots: Set<Day> = [], onPick: @escaping (Day) -> Void) {
+    public init(month: Month, selected: Day?, today: Day, dots: Set<Day> = [], earliest: Day? = nil,
+                onPick: @escaping (Day) -> Void) {
         self.month = month
         self.selected = selected
         self.today = today
         self.dots = dots
+        self.earliest = earliest
         self.onPick = onPick
     }
 
@@ -108,11 +111,12 @@ public struct MonthGrid: View {
         let inMonth = day.monthOf == month
         let on = day == selected
         let has = inMonth && dots.contains(day)
+        let early = earliest.map { day < $0 } ?? false
         return Button { onPick(day) } label: {
             Text("\(day.day)")
                 .kFont(.figure(15, on ? .medium : .regular))
                 .lineLimit(1).minimumScaleFactor(0.5)
-                .foregroundStyle(on ? c.onSelection : !inMonth ? c.ink3.opacity(0.5) : day > today ? c.ink3 : c.ink)
+                .foregroundStyle(on ? c.onSelection : !inMonth || early ? c.ink3.opacity(0.5) : day > today ? c.ink3 : c.ink)
                 .frame(minWidth: 38, maxWidth: .infinity, minHeight: daySize)
                 .background { Circle().fill(on ? c.selection : .clear).frame(maxWidth: daySize, maxHeight: daySize) }
                 .overlay { if day == today && !on { Circle().strokeBorder(c.line).frame(maxWidth: daySize, maxHeight: daySize) } }
@@ -123,6 +127,7 @@ public struct MonthGrid: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
+        .disabled(early)
         .accessibilityLabel(DayFormat.long(day, theme.locale))
         .accessibilityAddTraits(on ? .isSelected : [])
     }

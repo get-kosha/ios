@@ -8,6 +8,7 @@ import Design
 /// Event and balance corrections, with a live count on "Show N transactions". Category, tag, event and the amounts
 /// open as pages inside the sheet.
 struct FiltersSheet: View {
+    /// This month in the user's zone, what an unset period lists.
     let month: Month
     let onApply: (Filters) -> Void
     let close: () -> Void
@@ -38,7 +39,7 @@ struct FiltersSheet: View {
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
             let list: TransactionList? = try? await kosha.api.get(
-                "/api/v1/transactions", query: draft.params(draft.period(month), limit: 1)
+                "/api/v1/transactions", query: draft.params(month, limit: 1)
             )
             count = list?.total
         }

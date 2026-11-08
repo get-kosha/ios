@@ -6,8 +6,36 @@ import Design
 
 // What Activity reads and the pure helpers its screens share. Ported from the Android app's ActivityModel.kt.
 
-/// What Activity shows: search_transactions filters (GET /api/v1/transactions). A search, tag or event covers every
-/// date, as the web's Activity period does (core.ts parsePeriod); anything else is the app-wide month.
+/// The dates Activity lists (core.ts Period): a month, a year, every date, or chosen days.
+enum Period: Codable, Hashable, Sendable {
+    case month(Month)
+    case year(Int)
+    case all
+    case range(Day, Day)
+
+    /// The first and last day it covers, or nil for every date (core.ts periodDays).
+    var days: ClosedRange<Day>? {
+        switch self {
+        case .month(let m): m.first...m.last
+        case .year(let y): Day(y, 1, 1)...Day(y, 12, 31)
+        case .range(let from, let to): from...max(from, to)
+        case .all: nil
+        }
+    }
+
+    /// The month or year before (-1) or after (1). Chosen days and every date have no neighbours.
+    func shift(_ by: Int) -> Period? {
+        switch self {
+        case .month(let m): .month(m.adding(by))
+        case .year(let y): .year(y + by)
+        case .all, .range: nil
+        }
+    }
+}
+
+/// What Activity shows: search_transactions filters (GET /api/v1/transactions). Activity picks its own dates, apart
+/// from the app-wide month: unset, a search, tag or event covers every date and anything else the current month, as
+/// on the web (core.ts parsePeriod).
 struct Filters: Codable, Hashable, Sendable {
     var query = ""
     /// "expense", "income" or "transfer".
@@ -20,6 +48,7 @@ struct Filters: Codable, Hashable, Sendable {
     var tag: String?
     var eventId: String?
     var corrections = false
+    var period: Period?
 
     static let page = 100
 
@@ -34,12 +63,25 @@ struct Filters: Codable, Hashable, Sendable {
     /// Anything beyond the plain month list: no waiting rows, and "No match" rather than the empty month.
     var searching: Bool { count > 0 || !trimmedQuery.isEmpty || type != nil }
 
-    /// The month the list covers: none (every date) for a search, a tag or an event.
-    func period(_ month: Month) -> Month? { !trimmedQuery.isEmpty || tag != nil || eventId != nil ? nil : month }
+    /// Looking for something: then no period means every date.
+    var finding: Bool { !trimmedQuery.isEmpty || tag != nil || eventId != nil }
 
-    func params(_ month: Month?, offset: Int = 0, limit: Int = Filters.page) -> [String: String?] {
-        [
-            "month": month?.text,
+    /// The dates listed: the period, or the default for what's asked. `current` is this month in the user's zone.
+    func shown(_ current: Month) -> Period { period ?? (finding ? .all : .month(current)) }
+
+    func params(_ current: Month, offset: Int = 0, limit: Int = Filters.page) -> [String: String?] {
+        let shown = shown(current)
+        var month: String?, from: String?, to: String?
+        switch shown {
+        case .month(let m): month = m.text
+        // Without dates the server lists every date only when finding something; else it lists this month.
+        case .all: from = finding ? nil : "1970-01-01"
+        case .year, .range: (from, to) = (shown.days?.lowerBound.text, shown.days?.upperBound.text)
+        }
+        return [
+            "month": month,
+            "from": from,
+            "to": to,
             "query": trimmedQuery.isEmpty ? nil : trimmedQuery,
             "type": type,
             "accountId": accountId,
@@ -54,17 +96,19 @@ struct Filters: Codable, Hashable, Sendable {
         ]
     }
 
-    /// A cache key for this list, so each search keeps its own saved copy.
-    func key(_ month: Month?) -> String {
+    /// A cache key for this list, so each search keeps its own saved copy. `current` is part of it because an unset
+    /// period means this month.
+    func key(_ current: Month) -> String {
         // FNV-1a of the filters: String.hashValue changes every launch, and the saved copy must outlive it.
         let body = (try? KoshaJSON.encode(self)) ?? Data()
         let hash = body.reduce(UInt64(0xcbf2_9ce4_8422_2325)) { ($0 ^ UInt64($1)) &* 0x100_0000_01b3 }
-        return "activity/\(month?.text ?? "all")/\(String(hash, radix: 36))"
+        return "activity/\(current.text)/\(String(hash, radix: 36))"
     }
 
     static func of(_ s: ActivitySearch) -> Filters {
         Filters(query: s.query ?? "", type: s.type, accountId: s.accountId, categoryId: s.categoryId,
-                minAmount: s.minAmount, maxAmount: s.maxAmount, tag: s.tag, eventId: s.eventId)
+                minAmount: s.minAmount, maxAmount: s.maxAmount, tag: s.tag, eventId: s.eventId,
+                period: s.month.map(Period.month))
     }
 }
 

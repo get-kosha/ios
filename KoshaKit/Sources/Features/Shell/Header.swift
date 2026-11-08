@@ -4,8 +4,8 @@ import API
 import Store
 import Design
 
-/// The header of the main tabs. Overview, Activity and Recurring show the selected month (tap for the month sheet);
-/// Accounts shows its title. Then the display currency pill (tap to step through the user's currencies, touch and hold
+/// The header of the main tabs. Overview and Recurring show the selected month (tap for the month sheet), Activity its
+/// own dates (`period`), and Accounts its title. Then the display currency pill (tap to step through the user's currencies, touch and hold
 /// for the currency sheet), the Ask sparkle when Ask Kosha is on, an optional action, and the avatar, which opens the
 /// account menu. Ported from MainHeader in Header.kt.
 public struct MainHeader<Action: View>: View {
@@ -13,6 +13,7 @@ public struct MainHeader<Action: View>: View {
     let subtitle: String?
     let showMonth: Bool
     let showCurrency: Bool
+    let period: HeaderPeriod?
     let action: Action
     @Environment(Kosha.self) private var kosha
     @Environment(Navigator.self) private var nav
@@ -26,35 +27,45 @@ public struct MainHeader<Action: View>: View {
 
     public init(
         title: String? = nil, subtitle: String? = nil, showMonth: Bool? = nil, showCurrency: Bool? = nil,
-        @ViewBuilder action: () -> Action = { EmptyView() }
+        period: HeaderPeriod? = nil, @ViewBuilder action: () -> Action = { EmptyView() }
     ) {
         self.title = title
         self.subtitle = subtitle
         self.showMonth = showMonth ?? (title == nil)
         self.showCurrency = showCurrency ?? (showMonth ?? (title == nil))
+        self.period = period
         self.action = action()
     }
 
     public var body: some View {
         let c = theme.colors
         HStack(spacing: 4) {
-            if showMonth {
+            if showMonth || period != nil {
                 let now = Dates.month(kosha.tz)
-                let label = DayFormat.monthName(kosha.month, theme.locale).capitalized(with: theme.locale)
-                    + (kosha.month.year != now.year ? " \(kosha.month.year)" : "")
-                Button { sheet = .month } label: {
+                let shown = period ?? HeaderPeriod(
+                    label: DayFormat.monthName(kosha.month, theme.locale).capitalized(with: theme.locale)
+                        + (kosha.month.year != now.year ? " \(kosha.month.year)" : ""),
+                    spoken: DayFormat.month(kosha.month, theme.locale),
+                    open: { sheet = .month },
+                    previous: (L.shell_previous_month(), { kosha.month = kosha.month.adding(-1) }),
+                    next: (L.shell_next_month(), { kosha.month = kosha.month.adding(1) })
+                )
+                Button(action: shown.open) {
                     HStack(spacing: 6) {
-                        Text(label).kFont(.page).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(shown.label).kFont(.page).lineLimit(1).minimumScaleFactor(0.7)
                         PhIcon("caret-down", size: 18, color: c.ink3)
                     }
                     .frame(minHeight: 48)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(PressStyle())
-                .accessibilityLabel(DayFormat.month(kosha.month, theme.locale))
+                .accessibilityLabel(shown.spoken)
                 .accessibilityAddTraits(.isHeader)
-                .accessibilityAction(named: L.shell_previous_month()) { kosha.month = kosha.month.adding(-1) }
-                .accessibilityAction(named: L.shell_next_month()) { kosha.month = kosha.month.adding(1) }
+                // The swipe that steps the dates, for VoiceOver.
+                .accessibilityActions {
+                    if let p = shown.previous { Button(p.name, action: p.go) }
+                    if let n = shown.next { Button(n.name, action: n.go) }
+                }
                 Spacer(minLength: 4)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
@@ -104,6 +115,25 @@ public struct MainHeader<Action: View>: View {
             case .menu: AccountMenu { sheet = nil }
             }
         }
+    }
+}
+
+/// What the header's title shows when a screen picks its own dates, as Activity does: `label`, read as `spoken`,
+/// opening the screen's picker, and the steps back and on (a name for VoiceOver and the action), when there are any.
+public struct HeaderPeriod {
+    public var label: String
+    public var spoken: String
+    public var open: () -> Void
+    public var previous: (name: String, go: () -> Void)?
+    public var next: (name: String, go: () -> Void)?
+
+    public init(label: String, spoken: String, open: @escaping () -> Void,
+                previous: (name: String, go: () -> Void)? = nil, next: (name: String, go: () -> Void)? = nil) {
+        self.label = label
+        self.spoken = spoken
+        self.open = open
+        self.previous = previous
+        self.next = next
     }
 }
 

@@ -49,15 +49,43 @@ private let rates = ["eur": 0.5, "usd": 1.0]
 @Test func paramsLeaveOutWhatIsNotSet() {
     let f = Filters(query: "  rewe ", type: "expense", minAmount: 2000)
     let p = f.params(Month(2026, 11))
-    #expect(p["month"] == "2026-11")
+    // A search covers every date unless a period is picked.
+    #expect(p["month"] == .some(nil))
+    #expect(p["from"] == .some(nil))
     #expect(p["query"] == "rewe")
     #expect(p["minAmount"] == "2000")
     #expect(p["includeCorrections"] == .some(nil))
     #expect(Filters(minAmount: 1).count == 1)
     // A search, tag or event covers every date; a type or account keeps the month.
-    #expect(f.period(Month(2026, 11)) == nil)
-    #expect(Filters(type: "income").period(Month(2026, 11)) == Month(2026, 11))
-    #expect(f.key(nil) == Filters(query: "  rewe ", type: "expense", minAmount: 2000).key(nil))
+    #expect(f.shown(Month(2026, 11)) == .all)
+    #expect(Filters(type: "income").shown(Month(2026, 11)) == .month(Month(2026, 11)))
+    #expect(f.key(Month(2026, 11)) == Filters(query: "  rewe ", type: "expense", minAmount: 2000).key(Month(2026, 11)))
+    #expect(f.key(Month(2026, 11)) != Filters(query: "  rewe ", type: "expense", minAmount: 2000, period: .all).key(Month(2026, 11)))
+}
+
+/// month, from and to, as sent (nil when left out).
+private func dates(_ p: [String: String?]) -> [String?] { ["month", "from", "to"].map { p[$0] ?? nil } }
+
+@Test func periods() {
+    let now = Month(2026, 11)
+    #expect(Filters().params(now)["month"] == "2026-11")
+    let year = Filters(query: "rewe", period: .year(2025)).params(now)
+    #expect(dates(year) == [nil, "2025-01-01", "2025-12-31"])
+    // Every date without a search starts at 1970: the server's default without dates is this month.
+    let all = Filters(period: .all).params(now)
+    #expect(dates(all) == [nil, "1970-01-01", nil])
+    let found = Filters(tag: "trip", period: .all).params(now)
+    #expect(dates(found) == [nil, nil, nil])
+    let days = Filters(period: .range(Day(2026, 1, 5), Day(2026, 2, 10))).params(now)
+    #expect(dates(days) == [nil, "2026-01-05", "2026-02-10"])
+    #expect(Period.month(Month(2026, 12)).shift(1) == .month(Month(2027, 1)))
+    #expect(Period.year(2026).shift(-1) == .year(2025))
+    #expect(Period.range(Day(2026, 1, 5), Day(2026, 2, 10)).shift(1) == nil)
+    #expect(Period.all.shift(-1) == nil)
+    #expect(Period.month(Month(2026, 2)).days?.upperBound == Day(2026, 2, 28))
+    // A link that names a month lists it; one without lists every date for a payee.
+    #expect(Filters.of(ActivitySearch(query: "rewe", month: Month(2026, 3))).period == .month(Month(2026, 3)))
+    #expect(Filters.of(ActivitySearch(query: "rewe")).shown(now) == .all)
 }
 
 @Test func exchangeCostAsOnTheWeb() {

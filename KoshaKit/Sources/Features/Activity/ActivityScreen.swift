@@ -4,7 +4,7 @@ import API
 import Store
 import Design
 
-/// Activity: the month's entries from search_transactions, with a search field, All · Out · In · Transfers, the
+/// Activity: the entries in its own dates (this month by default) from search_transactions, with a search field, All · Out · In · Transfers, the
 /// Filters sheet, a summary of the server's totals in the display currency, entries grouped by day, entries waiting in
 /// the outbox first in their day, swipe left to delete and right to duplicate, and paging. Ported from
 /// ActivityScreen.kt.
@@ -20,15 +20,19 @@ struct ActivityScreen: View {
     @State private var next: Int?
     @State private var loadingMore = false
     @State private var showFilters = false
+    @State private var picking = false
     @State private var deleting: Model.Transaction?
-    /// A row is being swiped, so the month swipe leaves it alone.
+    /// A row is being swiped, so the step swipe leaves it alone.
     @State private var rowDragging = false
 
     var body: some View {
         let c = theme.colors
-        let period = filters.period(kosha.month)
+        // Activity picks its own dates; the shared month is Overview's, Accounts' and Recurring's.
+        let current = kosha.today.monthOf
+        let period = filters.shown(current)
+        let header = periodHeader(period, current: current, locale: theme.locale, open: { picking = true }, pick: pick)
         VStack(spacing: 0) {
-            MainHeader()
+            MainHeader(period: header)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     TabBanners().padding(.bottom, 8)
@@ -41,8 +45,11 @@ struct ActivityScreen: View {
                         )
                         .padding(.horizontal, 16).padding(.top, 12)
                     }
-                    if filters.tag != nil || filters.eventId != nil { tagLink.padding(.horizontal, 16).padding(.top, 12) }
-                    list(period: period)
+                    // A tag or event with dates picked narrows to them; its own view covers every date.
+                    if (filters.tag != nil || filters.eventId != nil) && filters.period != nil {
+                        tagLink.padding(.horizontal, 16).padding(.top, 12)
+                    }
+                    list(period: period, current: current)
                 }
                 .padding(.bottom, 24)
             }
@@ -50,15 +57,15 @@ struct ActivityScreen: View {
         }
         .background(c.bg)
         .hideNavigationBar()
-        .simultaneousGesture(monthSwipe)
-        .task(id: "\(filters.key(period))/\(kosha.version)") {
+        .simultaneousGesture(stepSwipe(header))
+        .task(id: "\(filters.key(current))/\(kosha.version)") {
             more = []
             next = nil
             let f = filters
-            await kosha.load(f.key(period), into: { (l: Loaded<TransactionList>) in
+            await kosha.load(f.key(current), into: { (l: Loaded<TransactionList>) in
                 loaded = l
                 next = l.value?.nextOffset
-            }) { api in try await api.get("/api/v1/transactions", query: f.params(period)) }
+            }) { api in try await api.get("/api/v1/transactions", query: f.params(current)) }
         }
         .task(id: typed) {
             try? await Task.sleep(for: .milliseconds(300))
@@ -67,13 +74,23 @@ struct ActivityScreen: View {
         .onAppear(perform: applySearch)
         .onChange(of: nav.activitySearch) { _, _ in applySearch() }
         .kSheet(isPresented: $showFilters, scrolls: true) {
-            FiltersSheet(start: filters, month: kosha.month) { f in
+            FiltersSheet(start: filters, month: current) { f in
                 filters = f
                 typed = f.query
                 showFilters = false
             } close: { showFilters = false }
         }
         .background { Color.clear.kSheet(item: $deleting) { t in DeleteConfirm(t: t) { _ in deleting = nil } } }
+        .background {
+            Color.clear.kSheet(isPresented: $picking) {
+                PeriodSheet(shown: period, current: current, onPick: { p in pick(p); picking = false }) { picking = false }
+            }
+        }
+    }
+
+    /// Picking this month while not finding stores no period, as on the web.
+    private func pick(_ p: Period) {
+        filters.period = !filters.finding && p == .month(kosha.today.monthOf) ? nil : p
     }
 
     private var rows: [Model.Transaction] { (loaded?.value?.transactions ?? []) + more }
@@ -81,18 +98,18 @@ struct ActivityScreen: View {
     /// A search handed over from Overview, Search, Ask or a transaction.
     private func applySearch() {
         guard let s = nav.activitySearch else { return }
-        if let month = s.month { kosha.month = month }
         filters = Filters.of(s)
         typed = filters.query
         nav.activitySearch = nil
     }
 
-    /// Sideways moves the month by one, unless a row is being swiped (Shell's monthSwipe can't tell).
-    private var monthSwipe: some Gesture {
+    /// Sideways steps the month or year: right back, left on, unless a row is being swiped (Shell's monthSwipe can't
+    /// tell). Chosen days and every date have no steps.
+    private func stepSwipe(_ header: HeaderPeriod) -> some Gesture {
         DragGesture(minimumDistance: 30).onEnded { g in
             guard !rowDragging, abs(g.translation.width) > 72, abs(g.translation.width) > abs(g.translation.height) * 2
             else { return }
-            kosha.month = kosha.month.adding(g.translation.width < 0 ? 1 : -1)
+            (g.translation.width < 0 ? header.next : header.previous)?.go()
         }
     }
 
@@ -130,7 +147,7 @@ struct ActivityScreen: View {
     }
 
     @ViewBuilder
-    private func list(period: Month?) -> some View {
+    private func list(period: Period, current: Month) -> some View {
         let c = theme.colors
         let pending = waitingRows(period)
         let waitingIds = Set(pending.map(\.id))
@@ -151,6 +168,11 @@ struct ActivityScreen: View {
         } else if groups.isEmpty {
             if loaded?.value == nil {
                 Text(loaded?.error ?? L.common_offline_body()).kFont(.small).foregroundStyle(c.ink3).padding(16)
+            } else if filters.period != nil {
+                Text(L.tx_empty_period()).kFont(.small).foregroundStyle(c.ink3).multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 48)
+                    .padding(.horizontal, 16)
             } else {
                 EmptyMonth()
             }
@@ -162,13 +184,14 @@ struct ActivityScreen: View {
                     ForEach(Array(group.entries.enumerated()), id: \.element.id) { i, t in
                         if i > 0 { Hairline() }
                         let isWaiting = waitingIds.contains(t.id)
-                        SwipeRow(enabled: !isWaiting, dragging: $rowDragging) {
+                        // A copy of a refund would be ordinary income, so a refund has no Duplicate.
+                        SwipeRow(enabled: !isWaiting, dragging: $rowDragging, onDelete: {
                             guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
                             deleting = t
-                        } onDuplicate: {
+                        }, onDuplicate: t.refundOf != nil ? nil : {
                             guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
                             nav.openAdd(AddRequest(duplicateOf: t.id))
-                        } content: {
+                        }) {
                             TxRow(t: t, waiting: isWaiting, onTap: isWaiting ? nil : { openEntry(kosha, nav, t) })
                         }
                     }
@@ -176,30 +199,32 @@ struct ActivityScreen: View {
                 .padding(.horizontal, 16)
             }
             if next != nil {
-                KButton(L.tx_load_earlier(), style: .secondary, size: .small) { Task { await loadMore(period) } }
+                KButton(L.tx_load_earlier(), style: .secondary, size: .small) { Task { await loadMore(current) } }
                     .disabled(loadingMore)
                     .frame(maxWidth: .infinity)
                     .padding(16)
-                    .onAppear { Task { await loadMore(period) } }
+                    .onAppear { Task { await loadMore(current) } }
             }
         }
     }
 
     /// Entries waiting for a connection, shown first in their day with a "waiting" mark.
-    private func waitingRows(_ period: Month?) -> [Model.Transaction] {
-        guard !filters.searching, let period else { return [] }
-        let today = kosha.today.text
+    /// Only those whose day is inside the dates listed.
+    private func waitingRows(_ period: Period) -> [Model.Transaction] {
+        guard !filters.searching else { return [] }
+        let today = kosha.today
         return kosha.waiting.compactMap { q in
-            let day = q.entry.day ?? today
-            return day.hasPrefix(period.text) ? Model.Transaction.waiting(q, day: day) : nil
+            let day = q.entry.day.flatMap { Day($0) } ?? today
+            if let days = period.days, !days.contains(day) { return nil }
+            return Model.Transaction.waiting(q, day: day.text)
         }
     }
 
-    private func loadMore(_ period: Month?) async {
+    private func loadMore(_ current: Month) async {
         guard let offset = next, !loadingMore else { return }
         loadingMore = true
         defer { loadingMore = false }
-        if let page: TransactionList = try? await kosha.api.get("/api/v1/transactions", query: filters.params(period, offset: offset)) {
+        if let page: TransactionList = try? await kosha.api.get("/api/v1/transactions", query: filters.params(current, offset: offset)) {
             more += page.transactions
             next = page.nextOffset
         }
@@ -400,13 +425,14 @@ struct TxRow: View {
     }
 }
 
-/// A row that swipes: left reveals Delete, right reveals Duplicate. Letting go past the reveal does it; VoiceOver gets
+/// A row that swipes: left reveals Delete, right reveals Duplicate (when it has one). Letting go past the reveal does it; VoiceOver gets
 /// both as actions.
 struct SwipeRow<Content: View>: View {
     let enabled: Bool
     @Binding var dragging: Bool
     let onDelete: () -> Void
-    let onDuplicate: () -> Void
+    /// nil: no Duplicate, so the row doesn't swipe right.
+    let onDuplicate: (() -> Void)?
     @ViewBuilder let content: Content
     @State private var offset: CGFloat = 0
     @Environment(\.kosha) private var theme
@@ -442,13 +468,13 @@ struct SwipeRow<Content: View>: View {
                     .onChanged { g in
                         guard abs(g.translation.width) > abs(g.translation.height) else { return }
                         dragging = true
-                        offset = max(-reveal * 1.4, min(reveal * 1.4, g.translation.width))
+                        offset = max(-reveal * 1.4, min(onDuplicate == nil ? 0 : reveal * 1.4, g.translation.width))
                     }
                     .onEnded { _ in
                         let v = offset
                         withAnimation(theme.animation(.easeOut(duration: 0.2))) { offset = 0 }
                         if v <= -reveal { onDelete() }
-                        if v >= reveal { onDuplicate() }
+                        if v >= reveal { onDuplicate?() }
                         // The month swipe reads this on the same release, so it clears a moment later.
                         Task {
                             try? await Task.sleep(for: .milliseconds(100))
@@ -457,8 +483,10 @@ struct SwipeRow<Content: View>: View {
                     }
             )
             .sensoryFeedback(.impact(weight: .light), trigger: abs(offset) >= reveal)
-            .accessibilityAction(named: L.common_delete(), onDelete)
-            .accessibilityAction(named: L.tx_duplicate(), onDuplicate)
+            .accessibilityActions {
+                Button(L.common_delete(), action: onDelete)
+                if let onDuplicate { Button(L.tx_duplicate(), action: onDuplicate) }
+            }
     }
 
     private func action(_ icon: String, _ label: String, ink: Color) -> some View {

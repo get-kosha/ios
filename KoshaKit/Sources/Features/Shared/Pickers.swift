@@ -184,12 +184,13 @@ func entryDays(_ kosha: Kosha, _ month: Month) async -> Set<Day> {
 
 /// Date and time (DateSheet, then TimeSheet in the same sheet): quick picks, the month grid with dots on days that have
 /// entries, "Days with entries", the picked day spelled out, and a Time row that opens the wheel. `time` nil hides
-/// the time row; `quick` adds End of month after Start of month.
+/// the time row; `endOfMonth` adds End of month after Start of month; days before `earliest` can't be picked.
 public struct DateSheet: View {
     let title: String
     @Binding var day: Day
     let time: Binding<String>?
     let endOfMonth: Bool
+    let earliest: Day?
     let close: () -> Void
     @Environment(Kosha.self) private var kosha
     @Environment(\.kosha) private var theme
@@ -198,11 +199,12 @@ public struct DateSheet: View {
     @State private var wheel = false
 
     public init(title: String? = nil, day: Binding<Day>, time: Binding<String>? = nil, endOfMonth: Bool = false,
-                close: @escaping () -> Void) {
+                earliest: Day? = nil, close: @escaping () -> Void) {
         self.title = title ?? (time == nil ? L.add_date() : L.add_date_and_time())
         _day = day
         self.time = time
         self.endOfMonth = endOfMonth
+        self.earliest = earliest
         self.close = close
         _month = State(initialValue: day.wrappedValue.monthOf)
     }
@@ -218,6 +220,7 @@ public struct DateSheet: View {
             (L.add_today(), today), (L.add_yesterday(), today.adding(days: -1)), (L.add_start_of_month(), today.monthOf.first),
         ]
         if endOfMonth { quick.append((L.add_end_of_month(), today.monthOf.last)) }
+        if let earliest { quick.removeAll { $0.1 < earliest } }
         return VStack(alignment: .leading, spacing: 8) {
             SheetHeader(title, onClose: close)
             ScrollView(.horizontal, showsIndicators: false) {
@@ -231,7 +234,7 @@ public struct DateSheet: View {
                 }
             }
             MonthHeader(month: month) { month = month.adding($0) }
-            MonthGrid(month: month, selected: day, today: today, dots: dots) { day = $0 }
+            MonthGrid(month: month, selected: day, today: today, dots: dots, earliest: earliest) { day = $0 }
             HStack(spacing: 6) {
                 Circle().fill(c.ink3).frame(width: 4, height: 4)
                 Text(L.app_add_days_with_entries()).kFont(.small).foregroundStyle(c.ink3)

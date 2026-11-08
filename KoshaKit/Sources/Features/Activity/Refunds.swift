@@ -75,7 +75,7 @@ struct RefundSheet: View {
     @Environment(\.kosha) private var theme
     @State private var accountId: String
     @State private var input: String?
-    /// nil until picked: today in the user's zone.
+    /// nil until picked; `picked` gives the default.
     @State private var day: Day?
     @State private var pickingDay = false
     @State private var busy = false
@@ -88,13 +88,17 @@ struct RefundSheet: View {
 
     var body: some View {
         if pickingDay {
-            DateSheet(day: Binding(get: { day ?? kosha.today }, set: { day = $0 })) { pickingDay = false }
+            DateSheet(day: Binding(get: { picked }, set: { day = $0 }), earliest: Day(t.day)) { pickingDay = false }
         } else {
             form
         }
     }
 
     private var currency: String { kosha.wallet(accountId)?.currency ?? t.currency }
+
+    /// Money can't come back before it was spent (transaction-form.tsx sets the picker's min): the picked day, else
+    /// today or the entry's day if that's later.
+    private var picked: Day { day ?? max(kosha.today, Day(t.day) ?? kosha.today) }
 
     /// What's still to come back, in the chosen account's currency.
     private var left: Int64 {
@@ -126,7 +130,7 @@ struct RefundSheet: View {
                 HStack(spacing: 10) {
                     PhIcon("calendar-blank", size: 18, color: c.ink2)
                     Text(L.tx_date()).frame(maxWidth: .infinity, alignment: .leading)
-                    Text(DayFormat.label(day ?? kosha.today, today: kosha.today, theme.locale)).foregroundStyle(c.ink2)
+                    Text(DayFormat.label(picked, today: kosha.today, theme.locale)).foregroundStyle(c.ink2)
                 }
                 .padding(.horizontal, 14)
                 .frame(minHeight: 48)
@@ -144,7 +148,7 @@ struct RefundSheet: View {
     /// One new entry with the spending entry's payee, tags and event; the server gives it the entry's category. It
     /// carries its own id, so a retry is saved once.
     private func save(_ minor: Int64) {
-        let entry = NewTransaction(accountId: accountId, payee: t.payee, amount: minor, day: (day ?? kosha.today).text, tags: t.tags,
+        let entry = NewTransaction(accountId: accountId, payee: t.payee, amount: minor, day: picked.text, tags: t.tags,
                                    eventId: t.eventId, refundOf: t.id)
         busy = true
         Task {
