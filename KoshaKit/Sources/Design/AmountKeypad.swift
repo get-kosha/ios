@@ -47,16 +47,17 @@ public struct AmountDisplay: View {
                 .kFont(.expr)
                 .foregroundStyle(c.ink3)
                 .lineLimit(1)
+                .minimumScaleFactor(0.4)
                 .frame(minHeight: 20)
                 .accessibilityHidden(!Keypad.hasOperator(input))
             Text(text)
                 .kFont(text.count > 8 ? .amountLong : .amount)
                 .foregroundStyle(input.isEmpty ? c.ink3 : kind == .income ? c.pos : c.ink)
                 .lineLimit(1)
-                .minimumScaleFactor(0.5)
+                .minimumScaleFactor(0.1)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
-                .contentTransition(.numericText())
+                .contentTransition(theme.motion == .on ? .numericText() : .opacity)
                 .accessibilityAddTraits(.updatesFrequently)
             if let note {
                 Text(note).kFont(.small).foregroundStyle(c.ink2).multilineTextAlignment(.center).lineLimit(2)
@@ -83,6 +84,11 @@ public struct AmountKeypad: View {
     private func press(_ key: Keypad.Key) {
         taps += 1
         input = Keypad.press(input, key, decimals: decimals)
+    }
+
+    private func clear() {
+        cleared += 1
+        input = ""
     }
 
     public var body: some View {
@@ -122,25 +128,21 @@ public struct AmountKeypad: View {
                     .padding(.vertical, 3)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(KeyStyle())
+            .buttonStyle(PressStyle())
             .accessibilityLabel(opLabel(op))
             .accessibilityAddTraits(on ? .isSelected : [])
         case .delete:
-            PhIcon("backspace", size: 28, color: c.ink2)
-                .frame(maxWidth: .infinity, minHeight: 60)
-                .contentShape(Rectangle())
-                .onTapGesture { press(.delete) }
-                .onLongPressGesture(minimumDuration: 0.5) {
-                    cleared += 1
-                    input = ""
-                }
-                .accessibilityElement()
-                .accessibilityLabel(L.app_key_delete())
-                .accessibilityAddTraits(.isButton)
-                .accessibilityAction { press(.delete) }
-                .accessibilityAction(named: L.tx_clear()) { input = "" }
-                .disabled(input.isEmpty)
-                .opacity(input.isEmpty ? 0.4 : 1)
+            Button { press(.delete) } label: {
+                PhIcon("backspace", size: 28, color: c.ink2)
+                    .frame(maxWidth: .infinity, minHeight: 60)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(KeyStyle())
+            .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in clear() })
+            .accessibilityLabel(L.app_key_delete())
+            .accessibilityAction(named: L.tx_clear(), clear)
+            .disabled(input.isEmpty)
+            .opacity(input.isEmpty ? 0.4 : 1)
         case .dot where decimals == 0:
             Color.clear.frame(height: 60).accessibilityHidden(true)
         default:

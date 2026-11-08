@@ -30,7 +30,7 @@ public enum DayFormat {
     public static func label(_ day: Day, today: Day, _ locale: Locale) -> String {
         if day == today { return L.add_today() }
         if day == today.adding(days: -1) { return L.add_yesterday() }
-        return short(day, locale)
+        return day.year == today.year ? weekdayDay(day, locale) : long(day, locale)
     }
 
     /// Whether the language writes 12-hour time.
@@ -41,7 +41,7 @@ public enum DayFormat {
     /// "13:05" or "1:05 PM", from the API's "HH:mm".
     public static func time(_ hhmm: String, _ locale: Locale) -> String {
         let p = hhmm.split(separator: ":").compactMap { Int($0) }
-        guard p.count == 2 else { return hhmm }
+        guard p.count == 2, (0...23).contains(p[0]), (0...59).contains(p[1]) else { return hhmm }
         let f = formatter("jmm", locale)
         let date = Day.calendarUTC.date(from: DateComponents(year: 2026, month: 1, day: 1, hour: p[0], minute: p[1]))!
         return f.string(from: date)
@@ -66,6 +66,7 @@ public struct MonthGrid: View {
     let dots: Set<Day>
     let onPick: (Day) -> Void
     @Environment(\.kosha) private var theme
+    @ScaledMetric(relativeTo: .body) private var daySize: CGFloat = 38
 
     public init(month: Month, selected: Day?, today: Day, dots: Set<Day> = [], onPick: @escaping (Day) -> Void) {
         self.month = month
@@ -84,7 +85,7 @@ public struct MonthGrid: View {
         let lead = ((month.first.weekday - firstWeekday) % 7 + 7) % 7
         let start = month.first.adding(days: -lead)
         let weeks = (lead + month.dayCount + 6) / 7
-        return Grid(horizontalSpacing: 0, verticalSpacing: 2) {
+        return Grid(horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
                 ForEach(0..<7, id: \.self) { i in
                     Text(symbols[(firstWeekday - 1 + i) % 7]).kFont(.xs).foregroundStyle(c.ink3)
@@ -106,15 +107,16 @@ public struct MonthGrid: View {
         let c = theme.colors
         let inMonth = day.monthOf == month
         let on = day == selected
-        let has = dots.contains(day)
+        let has = inMonth && dots.contains(day)
         return Button { onPick(day) } label: {
             Text("\(day.day)")
                 .kFont(.figure(15, on ? .medium : .regular))
+                .lineLimit(1).minimumScaleFactor(0.5)
                 .foregroundStyle(on ? c.onSelection : !inMonth ? c.ink3.opacity(0.5) : day > today ? c.ink3 : c.ink)
-                .frame(width: 38, height: 38)
-                .background(on ? c.selection : .clear, in: .circle)
-                .overlay { if day == today && !on { Circle().strokeBorder(c.line) } }
-                .frame(maxWidth: .infinity, minHeight: 42)
+                .frame(minWidth: 38, maxWidth: .infinity, minHeight: daySize)
+                .background { Circle().fill(on ? c.selection : .clear).frame(maxWidth: daySize, maxHeight: daySize) }
+                .overlay { if day == today && !on { Circle().strokeBorder(c.line).frame(maxWidth: daySize, maxHeight: daySize) } }
+                .frame(maxWidth: .infinity, minHeight: daySize + 6)
                 .overlay(alignment: .bottom) {
                     if has && !on { Circle().fill(c.ink3).frame(width: 4, height: 4).padding(.bottom, 3) }
                 }
@@ -157,30 +159,38 @@ struct Wheel: View {
     @State private var position: Int?
     @Environment(\.kosha) private var theme
 
-    private static let row: CGFloat = 44
-    private var laps: Int { loop ? 60 : 1 }
+    @ScaledMetric(relativeTo: .title2) private var row: CGFloat = 44
+    @ScaledMetric(relativeTo: .title2) private var width: CGFloat = 96
+    private var laps: Int { loop ? 200 : 1 }
+
+    static func adjusted(_ selected: Int, by step: Int, count: Int, loop: Bool) -> Int {
+        loop ? (selected + step + count) % count : min(count - 1, max(0, selected + step))
+    }
 
     var body: some View {
         let c = theme.colors
         let count = values.count * laps
+        let row = self.row
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 0) {
                 ForEach(0..<count, id: \.self) { i in
+                    let distance = min(abs(i - (position ?? ((laps / 2) * values.count + selected))), 3)
                     Text(values[i % values.count])
-                        .kFont(.figure(26, .medium))
+                        .kFont(.figure(distance == 0 ? 26 : distance == 1 ? 20 : 18,
+                                       distance == 0 ? .medium : .regular))
                         .foregroundStyle(c.ink)
-                        .frame(maxWidth: .infinity, minHeight: Wheel.row, maxHeight: Wheel.row)
+                        .lineLimit(1).minimumScaleFactor(0.5)
+                        .frame(maxWidth: .infinity, minHeight: row, maxHeight: row)
                         .contentShape(Rectangle())
                         .onTapGesture { withAnimation(theme.animation()) { position = i } }
                         .visualEffect { content, proxy in
                             let frame = proxy.frame(in: .scrollView(axis: .vertical))
-                            let centre = Wheel.row * 2.5
-                            let distance = (frame.midY - centre) / Wheel.row
+                            let centre = row * 2.5
+                            let distance = (frame.midY - centre) / row
                             let d = min(abs(distance), 3)
                             return content
-                                .scaleEffect(1 - d * 0.12)
                                 .opacity(d < 0.5 ? 1 : d < 1.5 ? 0.5 : d < 2.5 ? 0.22 : 0)
-                                .rotation3DEffect(.degrees(Double(-distance) * 18), axis: (1, 0, 0), perspective: 0.5)
+                                .rotation3DEffect(.degrees(Double(min(3, max(-3, -distance))) * 18), axis: (1, 0, 0), perspective: 0.5)
                         }
                 }
             }
@@ -188,10 +198,17 @@ struct Wheel: View {
         }
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $position, anchor: .center)
-        .contentMargins(.vertical, Wheel.row * 2, for: .scrollContent)
-        .frame(width: 96, height: Wheel.row * 5)
+        .contentMargins(.vertical, row * 2, for: .scrollContent)
+        .frame(maxWidth: width)
+        .frame(height: row * 5)
         .onAppear { position = (laps / 2) * values.count + selected }
-        .onChange(of: position) { _, p in if let p { selected = p % values.count } }
+        .onChange(of: position) { _, p in
+            guard let p else { return }
+            selected = p % values.count
+            if loop && (p < values.count || p >= count - values.count) {
+                position = (laps / 2) * values.count + selected
+            }
+        }
         .onChange(of: selected) { _, s in
             if let p = position, p % values.count != s { position = (p / values.count) * values.count + s }
         }
@@ -201,8 +218,8 @@ struct Wheel: View {
         .accessibilityValue(values[selected])
         .accessibilityAdjustableAction { dir in
             switch dir {
-            case .increment: selected = (selected + 1) % values.count
-            case .decrement: selected = (selected - 1 + values.count) % values.count
+            case .increment: selected = Self.adjusted(selected, by: 1, count: values.count, loop: loop)
+            case .decrement: selected = Self.adjusted(selected, by: -1, count: values.count, loop: loop)
             @unknown default: break
             }
         }
@@ -214,12 +231,13 @@ struct Wheel: View {
 public struct TimeWheel: View {
     @Binding var time: String
     @Environment(\.kosha) private var theme
+    @ScaledMetric(relativeTo: .title2) private var row: CGFloat = 44
 
     public init(time: Binding<String>) { _time = time }
 
     private var parts: (h: Int, m: Int) {
         let p = time.split(separator: ":").compactMap { Int($0) }
-        return p.count == 2 ? (p[0], p[1]) : (12, 0)
+        return p.count == 2 && (0...23).contains(p[0]) && (0...59).contains(p[1]) ? (p[0], p[1]) : (12, 0)
     }
 
     private func set(h: Int? = nil, m: Int? = nil) {
@@ -231,7 +249,7 @@ public struct TimeWheel: View {
         let twelve = DayFormat.uses12Hour(theme.locale)
         let minutes = (0...59).map { String(format: "%02d", $0) }
         ZStack {
-            RoundedRectangle(cornerRadius: 12).fill(c.soft).frame(height: 44)
+            RoundedRectangle(cornerRadius: 12).fill(c.soft).frame(height: row)
             HStack(spacing: 4) {
                 if twelve {
                     Wheel(values: (1...12).map(String.init), selected: Binding(
@@ -261,7 +279,8 @@ public struct TimeWheel: View {
                 LinearGradient(colors: [c.surface.opacity(0), c.surface], startPoint: .top, endPoint: .bottom).frame(height: 60)
             }
             .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
-        .frame(height: 220)
+        .frame(height: row * 5)
     }
 }

@@ -23,6 +23,7 @@ public struct FieldTile: View {
     let description: String?
     let action: () -> Void
     @Environment(\.kosha) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(
         _ label: String, icon: String, pick: Pick = .picked, aiGuess: Bool = false, description: String? = nil,
@@ -45,7 +46,9 @@ public struct FieldTile: View {
                 Text(label)
                     .kFont(.sans(12.5, .regular))
                     .foregroundStyle(quiet ? c.ink3 : pick == .guess ? c.ink2 : c.ink)
-                    .lineLimit(1)
+                    .lineLimit(typeSize > .large ? nil : 1)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 8)
@@ -65,6 +68,7 @@ public struct FieldTile: View {
         }
         .buttonStyle(PressStyle())
         .accessibilityLabel(description ?? label)
+        .accessibilityValue(pick == .guess ? L.add_suggested(name: label) : "")
     }
 }
 
@@ -105,8 +109,7 @@ public struct CategoryGrid: View {
 
     public var body: some View {
         let c = theme.colors
-        let perRow = typeSize.isAccessibilitySize ? 3 : 5
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: perRow), spacing: 4) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 5), spacing: 4) {
             ForEach(categories) { cat in
                 let on = cat.id == picked
                 let guessed = !on && cat.id == guess
@@ -116,7 +119,8 @@ public struct CategoryGrid: View {
                         Text(cat.label)
                             .kFont(on ? .sans(12, .medium) : .xs)
                             .foregroundStyle(on ? c.ink : c.ink2)
-                            .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                            .lineLimit(typeSize > .large ? nil : 1)
+                            .fixedSize(horizontal: false, vertical: true)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 2)
@@ -136,6 +140,8 @@ public struct CategoryGrid: View {
                     .contentShape(.rect(cornerRadius: 14))
                 }
                 .buttonStyle(PressStyle())
+                .accessibilityLabel(cat.label)
+                .accessibilityValue(guessed ? L.add_suggested(name: cat.label) : "")
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
@@ -216,21 +222,21 @@ public struct TransferPills: View {
     }
 
     public var body: some View {
-        ViewThatFits(in: .horizontal) {
-            row
-            VStack(spacing: 4) { row }
-        }
+        row
     }
 
     private var row: some View {
         HStack(spacing: 6) {
             AccountPill(from.name, color: from.color, caret: false, action: onFrom)
+                .frame(maxWidth: .infinity)
             Button(action: onSwap) {
-                PhIcon("arrow-right", size: 18, color: theme.colors.ink3).frame(width: 34, height: 44).contentShape(Rectangle())
+                PhIcon("arrow-right", size: 18, color: theme.colors.ink3).frame(width: 34, height: 44)
+                    .contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(PressStyle())
             .accessibilityLabel(swapLabel)
             AccountPill(to?.name ?? toPlaceholder, color: to?.color ?? .clear, guess: to == nil, caret: false, action: onTo)
+                .frame(maxWidth: .infinity)
         }
     }
 }
