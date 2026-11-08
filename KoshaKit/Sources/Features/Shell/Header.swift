@@ -95,6 +95,8 @@ public struct MainHeader<Action: View>: View {
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .padding(.vertical, 8)
+        // A 34pt title grows only so far, so the month and the buttons still fit one row.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .kSheet(item: $sheet) { s in
             switch s {
             case .month: MonthSheet(month: kosha.month) { kosha.month = $0; sheet = nil } close: { sheet = nil }

@@ -38,3 +38,25 @@ public struct FlowLayout: Layout {
         }
     }
 }
+
+/// Two things side by side (a label left, a figure right), stacked instead at the accessibility text sizes so neither
+/// breaks mid-word.
+public struct SplitRow<Leading: View, Trailing: View>: View {
+    let leading: Leading
+    let trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var size
+
+    public init(@ViewBuilder leading: () -> Leading, @ViewBuilder trailing: () -> Trailing) {
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    public var body: some View {
+        if size.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 4) { leading; trailing }
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            HStack(spacing: 8) { leading; Spacer(minLength: 0); trailing }
+        }
+    }
+}

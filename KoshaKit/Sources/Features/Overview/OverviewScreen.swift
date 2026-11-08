@@ -99,6 +99,7 @@ private struct MonthView: View {
     let recap: RecapView?
     @Environment(Kosha.self) private var kosha
     @Environment(\.kosha) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let m = kosha.meta
@@ -108,7 +109,9 @@ private struct MonthView: View {
         let saved = d.flows.income - d.flows.expense
         let bills = d.billsDue(current, rates)
         PaceCard(d: d, current: current)
-        HStack(alignment: .top, spacing: 12) {
+        // Side by side, or one above the other at the accessibility text sizes.
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        layout {
             MiniStat(
                 label: d.paceInfo.today != nil ? L.overview_saved_so_far() : L.overview_saved(), minor: saved,
                 currency: d.primary, positive: saved > 0,
@@ -144,10 +147,10 @@ private struct PaceCard: View {
         let money = { (v: Int64) in wholeMoney(v, d.primary, theme.locale) }
         Card {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
+                SplitRow {
                     Text(live ? L.overview_pace_spent_so_far() : L.overview_pace_spent_in(month: name))
                         .kFont(.small).foregroundStyle(c.ink3).accessibilityAddTraits(.isHeader)
-                    Spacer()
+                } trailing: {
                     Text(live ? L.overview_pace_day(day: "\(d.dayN)", days: "\(d.paceInfo.days)")
                          : L.overview_pace_days(days: "\(d.paceInfo.days)"))
                         .kFont(.small).foregroundStyle(c.ink3)
@@ -174,10 +177,10 @@ private struct PaceCard: View {
                     PaceChart(pace: d.paceInfo, projected: d.projected).padding(.top, 4)
                 }
                 if let usual = d.usualMonth {
-                    HStack {
+                    SplitRow {
                         figured(L.overview_pace_usual_month(amount: money(usual)), [money(usual)], theme, size: 13)
                             .kFont(.small).foregroundStyle(c.ink3).money()
-                        Spacer()
+                    } trailing: {
                         if let p = d.projected {
                             figured(L.overview_pace_projected(amount: money(p)), [money(p)], theme, size: 13)
                                 .kFont(.small).foregroundStyle(c.ink3).money()

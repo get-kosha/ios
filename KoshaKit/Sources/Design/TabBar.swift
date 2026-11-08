@@ -45,15 +45,16 @@ public struct TabBar<T: Hashable>: View {
                         Text(tab.label)
                             .font(.custom(on ? "Geist-Medium" : "Geist-Regular", size: 11, relativeTo: .caption2))
                             .foregroundStyle(on ? c.ink : c.ink3)
-                            .lineLimit(typeSize > .large ? nil : 1)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(PressStyle())
                 .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+                // At the accessibility sizes, touch and hold shows the tab's name large, as the system tab bar does.
+                .accessibilityShowsLargeContentViewer { PhIcon(tab.icon, size: 24, fill: on); Text(tab.label) }
             }
         }
         .padding(.horizontal, 8)
@@ -73,6 +74,8 @@ public struct TabBar<T: Hashable>: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .sensoryFeedback(.selection, trigger: selected)
+        // The bar keeps its size from extra large up, like the system's; the large content viewer reads it larger.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 
     private var addButton: some View {
