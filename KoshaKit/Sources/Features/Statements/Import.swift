@@ -754,7 +754,7 @@ private struct ImportChoose: View {
                             Text(stmtLines(s.lines)).kFont(.xs).foregroundStyle(c.ink3)
                         }
                         Spacer(minLength: 8)
-                        PhIcon("check-circle", size: 18, color: c.pos)
+                        PhIcon("check-circle", size: 18, color: c.ink2)
                     }
                 }
                 ForEach(model.reading) { r in
@@ -769,7 +769,7 @@ private struct ImportChoose: View {
                             }
                         }
                         Spacer(minLength: 8)
-                        ProgressView().controlSize(.small)
+                        Circle().fill(c.soft).frame(width: 18, height: 18).accessibilityHidden(true)
                     }
                 }
                 ForEach(model.failed) { f in
