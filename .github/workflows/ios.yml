@@ -34,7 +34,7 @@ jobs:
         run: python3 scripts/test-release.py
 
       - name: Test KoshaKit
-        run: swift test --package-path KoshaKit
+        run: swift test --package-path KoshaKit --build-system swiftbuild
 
       - name: Build and test the app
         run: >-

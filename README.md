@@ -19,7 +19,7 @@ The server, the money rules and every string live in the web repo, [get-kosha/we
 
 ## Build and run
 
-You need Xcode with Swift 6 and [XcodeGen](https://github.com/yonaskolb/XcodeGen). The app supports iOS and iPadOS 17.4 and later. The Xcode project is generated from `project.yml` and isn't in the repo:
+You need Xcode with Swift 6.3 or later and [XcodeGen](https://github.com/yonaskolb/XcodeGen). The app supports iOS and iPadOS 17.4 and later. The Xcode project is generated from `project.yml` and isn't in the repo:
 
 ```sh
 brew install xcodegen
@@ -31,8 +31,10 @@ Run `xcodegen generate` again after you add files or change `project.yml`.
 
 | Check | Command |
 | --- | --- |
-| KoshaKit's unit tests, on the Mac | `cd KoshaKit && swift test` |
+| KoshaKit's unit tests, on the Mac | `cd KoshaKit && swift test --build-system swiftbuild` |
 | The app with those tests, on a simulator | `xcodebuild test -project Kosha.xcodeproj -scheme Kosha -destination 'platform=iOS Simulator,name=<simulator>'` |
+
+Use the SwiftBuild backend for the package tests so the String Catalog is compiled into localized resources. The older native backend copies `.xcstrings` without compiling it, so localized lookups return message keys.
 
 To use a Kosha server on your Mac, run `npm run dev` in the web repo. The simulator reaches it at `http://localhost:3000`. In the app, choose **Use your own server** and enter that address. Plain HTTP works only for `localhost` and `127.0.0.1`. Sign in as the demo account, `demo@kosha.local` with the password `kosha-demo-2026`. Never use real account data in tests or screenshots.
 
