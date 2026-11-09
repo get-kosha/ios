@@ -180,33 +180,43 @@ func shrink(_ data: Data) -> Data? {
 /// The back camera's session and photo output, for the receipt camera.
 @MainActor @Observable
 final class CameraController: NSObject, AVCapturePhotoCaptureDelegate {
+    // AVFoundation's session/output stay on this queue; only the preview attaches the session on the main actor.
+    @ObservationIgnored nonisolated private let queue = DispatchQueue(label: "app.getkosha.camera")
     @ObservationIgnored nonisolated(unsafe) let session = AVCaptureSession()
-    @ObservationIgnored private let output = AVCapturePhotoOutput()
+    @ObservationIgnored nonisolated(unsafe) private let output = AVCapturePhotoOutput()
     @ObservationIgnored private var done: ((Data?) -> Void)?
+    @ObservationIgnored private var active = false
     private(set) var granted: Bool?
     var flash = false
 
     func start() async {
+        active = true
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized: granted = true
         case .notDetermined: granted = await AVCaptureDevice.requestAccess(for: .video)
         default: granted = false
         }
-        guard granted == true, session.inputs.isEmpty,
-              let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-              let input = try? AVCaptureDeviceInput(device: device) else { return }
-        session.beginConfiguration()
-        session.sessionPreset = .photo
-        if session.canAddInput(input) { session.addInput(input) }
-        if session.canAddOutput(output) { session.addOutput(output) }
-        session.commitConfiguration()
-        let s = session
-        Task.detached { s.startRunning() }
+        guard active, !Task.isCancelled, granted == true else { return }
+        queue.async { self.configureAndStart() }
+    }
+
+    nonisolated private func configureAndStart() {
+        dispatchPrecondition(condition: .onQueue(queue))
+        if session.inputs.isEmpty {
+            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+                  let input = try? AVCaptureDeviceInput(device: device) else { return }
+            session.beginConfiguration()
+            session.sessionPreset = .photo
+            if session.canAddInput(input) { session.addInput(input) }
+            if session.canAddOutput(output) { session.addOutput(output) }
+            session.commitConfiguration()
+        }
+        if !session.isRunning { session.startRunning() }
     }
 
     func stop() {
-        let s = session
-        Task.detached { s.stopRunning() }
+        active = false
+        queue.async { self.session.stopRunning() }
     }
 
     /// Asked and refused: only Settings can turn it on now.
@@ -220,9 +230,12 @@ final class CameraController: NSObject, AVCapturePhotoCaptureDelegate {
 
     func capture(_ done: @escaping (Data?) -> Void) {
         self.done = done
-        let settings = AVCapturePhotoSettings()
-        if output.supportedFlashModes.contains(.on) { settings.flashMode = flash ? .on : .off }
-        output.capturePhoto(with: settings, delegate: self)
+        let flash = flash
+        queue.async {
+            let settings = AVCapturePhotoSettings()
+            if self.output.supportedFlashModes.contains(.on) { settings.flashMode = flash ? .on : .off }
+            self.output.capturePhoto(with: settings, delegate: self)
+        }
     }
 
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
