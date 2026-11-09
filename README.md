@@ -79,7 +79,7 @@ The design boards are in the Android repo, in `../kosha-android/design/`:
 
 ## Release
 
-The [iOS workflow](.github/workflows/ios.yml) runs on Blacksmith's macOS 26 Apple Silicon runners. Pull requests run the release-script checks, `swift test` and the app's simulator tests. Every push to `main` runs the same checks, then archives and uploads the app to App Store Connect for TestFlight. A manual run on `main` uses the same path.
+The [iOS workflow](.github/workflows/ios.yml) runs on GitHub-hosted macOS 26 Apple Silicon runners. Pull requests run the release-script checks, `swift test` and the app's simulator tests. Every push to `main` runs the same checks, then archives and uploads the app to App Store Connect for TestFlight. A manual run on `main` uses the same path.
 
 Before delivery can run, add these repository secrets:
 
