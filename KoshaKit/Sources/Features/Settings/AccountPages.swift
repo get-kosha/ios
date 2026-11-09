@@ -235,8 +235,9 @@ struct SecurityPage: View {
 
             GroupCaption(L.app_set_on_phone())
             Rows {
+                // Swift 6.3 crashes when this actor-isolated setter is passed as a method reference.
                 SettingsSwitchRow(unlockTitle, description: canLock ? L.app_ios_set_unlock_desc() : L.app_ios_set_unlock_unavailable(),
-                          isOn: Binding(get: { lock }, set: setLock), enabled: canLock || lock, icon: unlockIcon)
+                          isOn: Binding(get: { lock }, set: { setLock($0) }), enabled: canLock || lock, icon: unlockIcon)
                 if lock {
                     Hairline()
                     VStack(alignment: .leading, spacing: 10) {
