@@ -85,6 +85,8 @@ struct Dashboard: Codable, Sendable {
 struct NetWorth: Codable, Sendable {
     @D var currency: String
     @Rounded var total: Int64
+    var receivables: Int64?
+    var personalDebt: Int64?
 }
 
 /// GET /api/app/recap: the recap Overview shows, if any (ai-tasks.server.ts getRecap).

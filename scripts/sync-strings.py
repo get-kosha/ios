@@ -31,7 +31,7 @@ INTENT_TITLES = ["add_add_expense", "add_add_income", "add_scan_receipt"]
 SHORTCUT_PHRASES = ["app_shortcut_add_expense", "app_shortcut_add_income", "app_shortcut_scan"]
 # The same areas as the Android app: landing, demos and legal are the web's marketing pages.
 AREAS = ["common", "auth", "overview", "transactions", "add", "accounts", "reconcile", "import", "welcome",
-         "settings", "settings-sections", "ai", "site", "server", "app"]
+         "loans", "settings", "settings-sections", "ai", "site", "server", "app"]
 AREAS += sorted(p.stem for p in (WEB / "messages/en").glob("app-*.json"))
 CATEGORIES = ["zero", "one", "two", "few", "many", "other"]
 SWIFT_KEYWORDS = {"default", "in", "for", "if", "else", "switch", "case", "return", "var", "let", "func", "class",

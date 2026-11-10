@@ -148,6 +148,7 @@ struct SearchSheet: View {
         let accounts = low.isEmpty ? [] : Array(kosha.activeWallets.filter { $0.name.lowercased().contains(low) }.prefix(3))
         let pages: [(String, String, () -> Void)] = [
             ("arrows-clockwise", L.shell_nav_recurring(), { nav.open(.recurring) }),
+            ("hand-coins", L.loans_title(), { nav.push(.loans) }),
             ("bank", L.shell_nav_accounts(), { nav.open(.accounts) }),
             ("tray-arrow-down", L.shell_page_import(), { nav.push(.importStatements) }),
             ("scales", L.shell_page_reconcile(), { nav.push(.reconcile()) }),
@@ -158,6 +159,9 @@ struct SearchSheet: View {
             result(icon: { IconTile("magnifying-glass") }, title: L.shell_search_activity(text: text)) {
                 go { nav.openActivity(ActivitySearch(query: String(text.prefix(40)))) }
             }
+        }
+        ForEach((kosha.meta?.loans ?? []).filter { !low.isEmpty && ($0.person + " " + $0.purpose).localizedCaseInsensitiveContains(low) }) { loan in
+            result(icon: { IconTile("hand-coins") }, title: loan.person, sub: loan.purpose) { go { nav.push(.loanDetail(id: loan.id)) } }
         }
         ForEach(cats) { cat in
             result(icon: { IconTile(categoryIconName(cat.icon)) }, title: cat.name, sub: L.shell_nav_activity()) {

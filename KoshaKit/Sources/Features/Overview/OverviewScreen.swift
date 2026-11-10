@@ -23,7 +23,7 @@ struct OverviewScreen: View {
             ScrollView {
                 VStack(spacing: 12) {
                     TabBanners()
-                    VStack(spacing: 12) { content }.padding(.horizontal, 16)
+                    VStack(spacing: 12) { LoansCard(); content }.padding(.horizontal, 16)
                 }
                 .padding(.bottom, 24)
             }

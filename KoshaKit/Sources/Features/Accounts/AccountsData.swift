@@ -16,6 +16,7 @@ struct AccountsOverview: Codable, Sendable {
     struct Point: Codable, Sendable, Hashable {
         var month: String
         var netWorth: Double
+        var loans: Double?
         @D var gains: Double
         @D var byAccount: [String: Double]
     }
@@ -100,8 +101,10 @@ enum AccountsMath {
         for p in points { for k in p.byAccount.keys.sorted() where !ids.contains(k) { ids.append(k) } }
         let accounts = ids.map { id in Layer(id: id, values: points.map { $0.byAccount[id] ?? 0 }) }
             .filter { $0.values.contains { $0.rounded() != 0 } }
+        let loans = Layer(id: "loan_principal", values: points.map { $0.loans ?? 0 })
+        let withLoans = loans.values.contains { $0 != 0 } ? accounts + [loans] : accounts
         let gains = Layer(id: nil, values: points.map(\.gains))
-        return gains.values.contains { $0.rounded() != 0 } ? accounts + [gains] : accounts
+        return gains.values.contains { $0.rounded() != 0 } ? withLoans + [gains] : withLoans
     }
 
     /// Stacks layers by sign, as recharts' stackOffset "sign": positive values pile up from zero, negative ones (card

@@ -18,6 +18,9 @@ public enum Route: Hashable, Sendable {
     case recurringForm(id: String? = nil, fromPayee: String? = nil, fromTransaction: String? = nil)
 
     // Accounts
+    case loans
+    case loanDetail(id: String)
+    case loanForm
     case accountDetail(id: String)
     case investmentDetail(id: String)
     case accountForm(id: String? = nil)

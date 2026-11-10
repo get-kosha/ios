@@ -1256,6 +1256,70 @@ extension L {
     public static func ask_empty_body() -> String { L.text("ask_empty_body", [:]) }
     public static func ask_thinking() -> String { L.text("ask_thinking", [:]) }
     public static func ask_how_found(count: Int) -> String { L.plural("ask_how_found", [count], ["count": String(count)]) }
+    public static func loans_title() -> String { L.text("loans_title", [:]) }
+    public static func loans_new() -> String { L.text("loans_new", [:]) }
+    public static func loans_lent() -> String { L.text("loans_lent", [:]) }
+    public static func loans_borrowed() -> String { L.text("loans_borrowed", [:]) }
+    public static func loans_owed_to_you() -> String { L.text("loans_owed_to_you", [:]) }
+    public static func loans_you_owe() -> String { L.text("loans_you_owe", [:]) }
+    public static func loans_all() -> String { L.text("loans_all", [:]) }
+    public static func loans_open() -> String { L.text("loans_open", [:]) }
+    public static func loans_paid() -> String { L.text("loans_paid", [:]) }
+    public static func loans_partial() -> String { L.text("loans_partial", [:]) }
+    public static func loans_unpaid() -> String { L.text("loans_unpaid", [:]) }
+    public static func loans_person() -> String { L.text("loans_person", [:]) }
+    public static func loans_purpose() -> String { L.text("loans_purpose", [:]) }
+    public static func loans_due() -> String { L.text("loans_due", [:]) }
+    public static func loans_no_due() -> String { L.text("loans_no_due", [:]) }
+    public static func loans_starting() -> String { L.text("loans_starting", [:]) }
+    public static func loans_new_movement() -> String { L.text("loans_new_movement", [:]) }
+    public static func loans_existing() -> String { L.text("loans_existing", [:]) }
+    public static func loans_opening() -> String { L.text("loans_opening", [:]) }
+    public static func loans_principal() -> String { L.text("loans_principal", [:]) }
+    public static func loans_remaining() -> String { L.text("loans_remaining", [:]) }
+    public static func loans_repaid() -> String { L.text("loans_repaid", [:]) }
+    public static func loans_received() -> String { L.text("loans_received", [:]) }
+    public static func loans_made() -> String { L.text("loans_made", [:]) }
+    public static func loans_full() -> String { L.text("loans_full", [:]) }
+    public static func loans_applied() -> String { L.text("loans_applied", [:]) }
+    public static func loans_account_amount() -> String { L.text("loans_account_amount", [:]) }
+    public static func loans_link() -> String { L.text("loans_link", [:]) }
+    public static func loans_unlink() -> String { L.text("loans_unlink", [:]) }
+    public static func loans_unlink_warning() -> String { L.text("loans_unlink_warning", [:]) }
+    public static func loans_delete_warning() -> String { L.text("loans_delete_warning", [:]) }
+    public static func loans_choose_entry() -> String { L.text("loans_choose_entry", [:]) }
+    public static func loans_empty() -> String { L.text("loans_empty", [:]) }
+    public static func loans_neutral() -> String { L.text("loans_neutral", [:]) }
+    public static func loans_current() -> String { L.text("loans_current", [:]) }
+    public static func loans_opening_note() -> String { L.text("loans_opening_note", [:]) }
+    public static func loans_received_into() -> String { L.text("loans_received_into", [:]) }
+    public static func loans_paid_from() -> String { L.text("loans_paid_from", [:]) }
+    public static func loans_invalid_payment() -> String { L.text("loans_invalid_payment", [:]) }
+    public static func loans_overpaid() -> String { L.text("loans_overpaid", [:]) }
+    public static func loans_not_found() -> String { L.text("loans_not_found", [:]) }
+    public static func loans_edit_payment() -> String { L.text("loans_edit_payment", [:]) }
+    public static func loans_unlink_repayments() -> String { L.text("loans_unlink_repayments", [:]) }
+    public static func loans_retry_conflict() -> String { L.text("loans_retry_conflict", [:]) }
+    public static func loans_invalid_date() -> String { L.text("loans_invalid_date", [:]) }
+    public static func loans_choose_account() -> String { L.text("loans_choose_account", [:]) }
+    public static func loans_choose_category() -> String { L.text("loans_choose_category", [:]) }
+    public static func loans_offline() -> String { L.text("loans_offline", [:]) }
+    public static func loans_saved() -> String { L.text("loans_saved", [:]) }
+    public static func loans_lent_effect(amount: String, account: String, person: String, principal: String) -> String { L.text("loans_lent_effect", ["amount": amount, "account": account, "person": person, "principal": principal]) }
+    public static func loans_borrowed_effect(amount: String, account: String, person: String, principal: String) -> String { L.text("loans_borrowed_effect", ["amount": amount, "account": account, "person": person, "principal": principal]) }
+    public static func loans_after(amount: String) -> String { L.text("loans_after", ["amount": amount]) }
+    public static func loans_overdue(date: String) -> String { L.text("loans_overdue", ["date": date]) }
+    public static func loans_tracked_since(date: String) -> String { L.text("loans_tracked_since", ["date": date]) }
+    public static func loans_original() -> String { L.text("loans_original", [:]) }
+    public static func loans_repayment() -> String { L.text("loans_repayment", [:]) }
+    public static func loans_history() -> String { L.text("loans_history", [:]) }
+    public static func loans_currency_note() -> String { L.text("loans_currency_note", [:]) }
+    public static func loans_link_note() -> String { L.text("loans_link_note", [:]) }
+    public static func loans_terms() -> String { L.text("loans_terms", [:]) }
+    public static func loans_remove() -> String { L.text("loans_remove", [:]) }
+    public static func loans_find() -> String { L.text("loans_find", [:]) }
+    public static func loans_privacy() -> String { L.text("loans_privacy", [:]) }
+    public static func loans_due_on(date: String) -> String { L.text("loans_due_on", ["date": date]) }
     public static func settings_group_you() -> String { L.text("settings_group_you", [:]) }
     public static func settings_group_preferences() -> String { L.text("settings_group_preferences", [:]) }
     public static func settings_group_money() -> String { L.text("settings_group_money", [:]) }

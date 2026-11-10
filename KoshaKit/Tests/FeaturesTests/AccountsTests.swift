@@ -58,3 +58,11 @@ private func wallet(_ json: String) -> Wallet { try! KoshaJSON.decode(Wallet.sel
     #expect(AccountsMath.layers(o.series, order: ["c", "a"]).map(\.id) == ["c", "a", nil])
     #expect(AccountsMath.range(o.series, 1).count == 1)
 }
+
+@Test func historicalLoanLayersUseEachPointsOwnBalance() throws {
+    let overview = try KoshaJSON.decode(AccountsOverview.self, Data(#"{"currency":"eur","month":"2026-11","today":"2026-11-10","series":[{"month":"2026-10","netWorth":10000,"gains":0,"byAccount":{"bank":4000},"loans":6000},{"month":"2026-11","netWorth":10000,"gains":0,"byAccount":{"bank":7500},"loans":2500}]}"#.utf8))
+    let layers = AccountsMath.layers(overview.series, order: ["bank"])
+    #expect(layers.first { $0.id == Categories.loanPrincipal }?.values == [6000, 2500])
+    #expect(layers.first { $0.id == "bank" }?.values == [4000, 7500])
+    #expect(overview.series.map(\.netWorth) == [10000, 10000])
+}

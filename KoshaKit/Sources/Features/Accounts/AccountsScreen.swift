@@ -55,6 +55,10 @@ struct AccountsScreen: View {
             ) {
                 IconButton("plus", label: L.accounts_new(), solid: true, color: c.ink) { nav.push(.accountForm()) }
             }
+            HStack {
+                Text(L.accounts_title()).kFont(.head)
+                KButton(L.loans_title(), style: .secondary, size: .small) { nav.push(.loans) }
+            }.padding(.horizontal, 16)
             TabBanners()
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
@@ -271,7 +275,7 @@ private struct WorthChart: View {
             // The key, two columns.
             let keys = layers.enumerated().map { k, l -> (String, Color) in
                 let w = wallets.first { $0.id == l.id }
-                let name = l.id == nil ? L.accounts_chart_gains() : w == nil ? L.accounts_chart_other()
+                let name = l.id == Categories.loanPrincipal ? L.loans_title() : l.id == nil ? L.accounts_chart_gains() : w == nil ? L.accounts_chart_other()
                     : l.values.allSatisfy { $0 <= 0 } ? L.app_acc_owed(account: w!.name) : w!.name
                 return (name, layerColor(c, l.id, index(l.id), k))
             }

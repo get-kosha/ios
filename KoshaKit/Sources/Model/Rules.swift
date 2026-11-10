@@ -5,9 +5,10 @@ import Foundation
 public enum Categories {
     public static let correction = "0"
     public static let transfer = "transfer"
+    public static let loanPrincipal = "loan_principal"
     public static let transferFee = "transfer_fee"
 
-    public static func isNeutral(_ id: String) -> Bool { id == correction || id == transfer }
+    public static func isNeutral(_ id: String) -> Bool { id == correction || id == transfer || id == loanPrincipal }
 
     /// Kosha's own categories, which the person can't pick for an ordinary entry.
     public static func isSystem(_ id: String) -> Bool { isNeutral(id) || id == transferFee }

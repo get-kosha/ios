@@ -82,12 +82,14 @@ struct TxDetailScreen: View {
     }
 
     private func edit(_ s: DetailSheet) {
+        if t?.loan != nil || t?.categoryId == Categories.loanPrincipal { toasts.show(L.loans_edit_payment(), warning: true); return }
         if kosha.canWrite { sheet = s } else { toasts.show(L.common_demo_read_only(), warning: true) }
     }
 
     /// Saves one change. A reconciled entry asks first when the change touches its amount, account or day.
     private func save(_ change: [String: JSONValue], touchesReconciled: Bool) {
         guard let t else { return }
+        guard t.loan == nil, t.categoryId != Categories.loanPrincipal else { return toasts.show(L.loans_edit_payment(), warning: true) }
         guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
         if t.reconciled && touchesReconciled {
             pending = change
@@ -113,6 +115,10 @@ struct TxDetailScreen: View {
     @ViewBuilder
     private func content(_ t: Model.Transaction) -> some View {
         let c = theme.colors
+        if let loan = t.loan {
+            KButton(L.loans_title() + " · " + loan.person, style: .secondary) { nav.push(.loanDetail(id: loan.id)) }
+            Text(L.loans_edit_payment()).kFont(.small)
+        }
         let neutral = Categories.isNeutral(t.categoryId)
         let category = kosha.category(t.categoryId)
         VStack(spacing: 12) {
@@ -155,14 +161,14 @@ struct TxDetailScreen: View {
                     Text((Day(t.day).map { dayText($0, theme.locale, weekday: true, year: true) } ?? t.day)
                          + " · " + DayFormat.time(t.hhmm, theme.locale))
                 }
-                if t.refundOf == nil { typeRow(t) }
+                if t.refundOf == nil && t.loan == nil && t.categoryId != Categories.loanPrincipal { typeRow(t) }
             }
             tagsCard(t)
             if kosha.meta?.attachments == true { AttachmentsCard(t: t) { edit(.attach) } }
             if t.canRefund { RefundsCard(t: t) }
             if t.reconciled { ReconciledNote() }
             if !t.payee.trimmingCharacters(in: .whitespaces).isEmpty { AtPayee(payee: t.payee) }
-            if kosha.canWrite {
+            if kosha.canWrite && t.loan == nil && t.categoryId != Categories.loanPrincipal {
                 if t.refundOf == nil {
                     LinkCard(icon: "arrows-clockwise", label: L.add_make_recurring()) {
                         nav.push(.recurringForm(fromTransaction: t.id))
