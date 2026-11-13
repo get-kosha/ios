@@ -23,7 +23,7 @@ struct OverviewScreen: View {
             ScrollView {
                 VStack(spacing: 12) {
                     TabBanners()
-                    VStack(spacing: 12) { LoansCard(); content }.padding(.horizontal, 16)
+                    VStack(spacing: 12) { content }.padding(.horizontal, 16)
                 }
                 .padding(.bottom, 24)
             }
@@ -129,6 +129,7 @@ private struct MonthView: View {
         NeedsAttention(d: d, today: today)
         ComingUp(d: d, today: today)
         WhereItWent(d: d)
+        OverviewLoansCard()
         NetWorthCard(d: d, worth: worth)
     }
 }

@@ -18,9 +18,6 @@ public enum Route: Hashable, Sendable {
     case recurringForm(id: String? = nil, fromPayee: String? = nil, fromTransaction: String? = nil)
 
     // Accounts
-    case loans
-    case loanDetail(id: String)
-    case loanForm
     case accountDetail(id: String)
     case investmentDetail(id: String)
     case accountForm(id: String? = nil)
@@ -28,6 +25,12 @@ public enum Route: Hashable, Sendable {
     case exchanges
     case reconcile(accountId: String? = nil)
     case importStatements
+
+    // Loans
+    case loans
+    case loanDetail(id: String)
+    /// A new loan; with `id` the loan's terms, or with `repayment` a repayment to it.
+    case loanForm(id: String? = nil, repayment: Bool = false)
 
     // Ask Kosha (AI)
     case ask(question: String? = nil)

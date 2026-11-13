@@ -185,7 +185,8 @@ struct ActivityScreen: View {
                         if i > 0 { Hairline() }
                         let isWaiting = waitingIds.contains(t.id)
                         // A copy of a refund would be ordinary income, so a refund has no Duplicate.
-                        SwipeRow(enabled: !isWaiting && t.loan == nil && t.categoryId != Categories.loanPrincipal, dragging: $rowDragging, onDelete: {
+                        // A loan's entry is managed from the loan, so it has no swipe actions.
+                        SwipeRow(enabled: !isWaiting && t.loan == nil, dragging: $rowDragging, onDelete: {
                             guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
                             deleting = t
                         }, onDuplicate: t.refundOf != nil ? nil : {
@@ -235,7 +236,7 @@ struct ActivityScreen: View {
 @MainActor
 func openEntry(_ kosha: Kosha, _ nav: Navigator, _ t: Model.Transaction) {
     kosha.cache.write("tx/\(t.id)", t)
-    if let loan = t.loan { nav.push(.loanDetail(id: loan.id)); return }
+    if let loan = t.loan { return nav.push(.loanDetail(id: loan.id)) }
     nav.push(t.transfer != nil ? .transferDetail(id: t.id) : .txDetail(id: t.id))
 }
 
@@ -338,7 +339,7 @@ struct TxRow: View {
         let neutral = Categories.isNeutral(t.categoryId)
         let display = kosha.display
         return HStack(spacing: 12) {
-            IconTile(t.transfer != nil ? "arrows-left-right" : categoryIconName(category?.icon))
+            IconTile(t.transfer != nil ? "arrows-left-right" : t.loan != nil ? "hand-coins" : categoryIconName(category?.icon))
             VStack(alignment: .leading, spacing: 2) {
                 if let link = t.transfer {
                     let to = kosha.wallet(link.counterAccountId)
@@ -361,7 +362,7 @@ struct TxRow: View {
                         }
                     }
                     HStack(spacing: 4) {
-                        Text((t.loan.map { L.loans_title() + " · " + $0.person } ?? category?.name ?? t.categoryName) + " ·").kFont(.xs).foregroundStyle(c.ink3).lineLimit(1)
+                        Text((t.loan.map { $0.funding ? L.loans_original() : L.loans_repayment() } ?? category?.name ?? t.categoryName) + " ·").kFont(.xs).foregroundStyle(c.ink3).lineLimit(1)
                             .layoutPriority(1)
                         AccountDot(c.account(kosha.colorIndex(t.accountId)))
                         Text(([t.accountName] + rest).joined(separator: " · ")).kFont(.xs).foregroundStyle(c.ink3).lineLimit(1)

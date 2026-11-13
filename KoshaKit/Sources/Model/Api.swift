@@ -78,7 +78,6 @@ public struct Transaction: Codable, Sendable, Hashable, Identifiable {
     public var recurringId: String?
     public var dueDay: String?
     public var transfer: TransferLink?
-    public var loan: LoanLink?
     @D public var reconciled: Bool
     public var bankRef: String?
     @D public var attachmentCount: Int
@@ -90,6 +89,8 @@ public struct Transaction: Codable, Sendable, Hashable, Identifiable {
     /// The refunds' total in this entry's currency, from the server (other currencies at today's rate). nil from a
     /// server too old to take refunds, which would save one as plain income.
     public var refunded: Int64?
+    /// Set when the entry is a personal loan's funding or repayment: neutral, and managed from the loan.
+    public var loan: LoanLink?
 
     public var hhmm: String { time ?? "12:00" }
     public var isUpcoming: Bool { status == "upcoming" }
@@ -101,14 +102,6 @@ public struct Transaction: Codable, Sendable, Hashable, Identifiable {
         public var amount: Int64
         public var currency: String
         public var day: String
-    }
-
-    public struct LoanLink: Codable, Sendable, Hashable {
-        public var id: String
-        public var kind: String
-        public var principal: Int64
-        public var person: String
-        public var direction: String
     }
 
     public struct TransferLink: Codable, Sendable, Hashable {
@@ -276,7 +269,6 @@ public struct KoshaEvent: Codable, Sendable, Hashable, Identifiable {
 
 /// What every screen needs, from GET /api/app/meta (the web's getMeta).
 public struct Meta: Codable, Sendable {
-    public var loans: [Loan]?
     @D public var wallets: [Wallet]
     @D public var categories: [MetaCategory]
     @D public var rules: [Rule]
@@ -299,6 +291,8 @@ public struct Meta: Codable, Sendable {
     @D public var avatars: Bool
     @D public var attachments: Bool
     @D public var version: Int
+    /// Every personal loan, repaid ones included, for search and the loan totals.
+    @D public var loans: [Loan]
 
     public var primaryCurrency: String { primary ?? "eur" }
     public var timeZone: String { tz ?? "UTC" }

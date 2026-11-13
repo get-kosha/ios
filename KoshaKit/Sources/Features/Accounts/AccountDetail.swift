@@ -151,15 +151,20 @@ private struct RecentCard: View {
         let title = transfer == nil ? (t.payee.isEmpty ? L.accounts_untitled() : t.payee)
             : t.amount < 0 ? L.app_rec_to_account(account: counter) : L.app_acc_from_account(account: counter)
         let day = Day(t.day).map { DayFormat.label($0, today: today, theme.locale) } ?? t.day
-        return ListRow(action: { nav.push(transfer.map { .transferDetail(id: $0.id) } ?? .txDetail(id: t.id)) }) {
-            IconTile(transfer != nil ? "arrows-left-right" : categoryIconName(cat?.icon))
+        let loan = t.loan
+        let kind = loan.map { $0.funding ? L.loans_original() : L.loans_repayment() }
+            ?? (transfer != nil ? L.subs_kind_transfer() : (t.categoryName.isEmpty ? cat?.name ?? "" : t.categoryName))
+        return ListRow(action: {
+            nav.push(loan.map { .loanDetail(id: $0.id) } ?? transfer.map { .transferDetail(id: $0.id) } ?? .txDetail(id: t.id))
+        }) {
+            IconTile(transfer != nil ? "arrows-left-right" : loan != nil ? "hand-coins" : categoryIconName(cat?.icon))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).lineLimit(1)
-                Text(day + " · " + (transfer != nil ? L.subs_kind_transfer() : (t.categoryName.isEmpty ? cat?.name ?? "" : t.categoryName)))
+                Text(day + " · " + kind)
                     .kFont(.xs).foregroundStyle(c.ink3)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if transfer != nil && !transfersOnly {
+            if (transfer != nil && !transfersOnly) || loan != nil {
                 MoneyText(t.amount, t.currency, color: c.ink2)
             } else {
                 MoneyText(t.amount, t.currency, sign: .always, color: t.amount > 0 ? c.pos : c.ink)

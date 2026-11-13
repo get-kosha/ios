@@ -4,288 +4,427 @@ import API
 import Store
 import Design
 
-private enum LoanPick: String, Identifiable {
-    case amount, bankAmount, account, day, due, entry, currency
+private enum LoanPicker: String, Identifiable {
+    case amount, bank, account, currency, day, due, entry
     var id: String { rawValue }
 }
 
-private struct LoanDraft: Codable, Equatable {
-    var direction: String
-    var source: String
-    var person: String
-    var purpose: String
-    var note: String
-    var amount: Int64?
-    var bankAmount: Int64?
-    var account: String
-    var currency: String?
-    var day: String?
-    var due: String?
-    var entry: Model.Transaction?
-    var request: LoanRequest?
-}
-
-struct LoanForm: View {
-    var loan: Loan? = nil
-    let close: () -> Void
+/// A new loan, a repayment (`repayment` with the loan's `id`), or the loan's terms (`id` alone). A new loan or repayment
+/// is a new bank movement, an existing entry linked to it, or (new loans only) a balance already outstanding. Saving
+/// needs a connection; a request whose answer never came is kept as it was and sent again unchanged, with the same id,
+/// so it is saved once. Ported from the Android app's LoanFormScreen and the web's LoanForm.
+struct LoanFormScreen: View {
+    let id: String?
+    let repayment: Bool
     @Environment(Kosha.self) private var kosha
+    @Environment(Navigator.self) private var nav
     @Environment(Toasts.self) private var toasts
+    @Environment(\.kosha) private var theme
+    @Environment(\.dismiss) private var dismiss
+    @State private var loan: Loan?
+    @State private var loadError: String?
+    @State private var filled = false
     @State private var direction = "lent"
-    @State private var source = "new"
     @State private var person = ""
     @State private var purpose = ""
     @State private var note = ""
+    @State private var source = "new"
+    @State private var accountId: String?
+    @State private var currency = ""
+    @State private var day = Day(2026, 1, 1)
+    @State private var due: Day?
     @State private var amount: Int64?
     @State private var bankAmount: Int64?
-    @State private var account = ""
-    @State private var openingCurrency: String?
-    @State private var day: Day?
-    @State private var due: Day?
     @State private var entry: Model.Transaction?
-    @State private var picker: LoanPick?
+    @State private var picker: LoanPicker?
+    /// A request whose answer never came, sent again unchanged (same id and body) by Try again.
+    @State private var frozen: LoanRequest?
     @State private var busy = false
-    // Retain the exact submitted payload after an uncertain failure; edits get a new request identity.
-    @State private var request: LoanRequest?
-    @State private var restored = false
-    @State private var completed = false
-    private var draftKey: String { "loan-draft/" + (loan?.id ?? "new") }
-    private var draft: LoanDraft {
-        LoanDraft(direction: direction, source: source, person: person, purpose: purpose, note: note,
-                  amount: amount, bankAmount: bankAmount, account: account, currency: openingCurrency, day: day?.text, due: due?.text, entry: entry, request: request)
-    }
-    private func restore() {
-        guard !restored else { return }
-        if let d: LoanDraft = kosha.cache.read(draftKey) {
-            direction = d.direction; source = d.source; person = d.person; purpose = d.purpose; note = d.note
-            amount = d.amount; bankAmount = d.bankAmount; account = d.account; openingCurrency = d.currency
-            day = (d.day ?? d.request?.content["day"]?.string).flatMap(Day.init) ?? kosha.today; due = d.due.flatMap(Day.init); entry = d.entry; request = d.request
-        } else {
-            account = kosha.activeWallets.first?.id ?? ""
-            day = kosha.today
-            openingCurrency = kosha.primary
-        }
-        restored = true
-    }
+    @State private var error: String?
 
-    private var currency: String { loan?.currency ?? (source == "opening" ? openingCurrency ?? kosha.primary : source == "existing" ? entry?.currency ?? kosha.primary : kosha.wallet(account)?.currency ?? kosha.primary) }
-    private var bankCurrency: String { (source == "existing" ? entry?.currency : kosha.wallet(account)?.currency) ?? currency }
-    private var chosenDay: Day { day ?? kosha.today }
-    private var income: Bool { loan.map { $0.direction == "lent" } ?? (direction == "borrowed") }
+    private var editing: Bool { id != nil && !repayment }
 
     var body: some View {
-        FormPage(loan == nil ? L.loans_new() : L.loans_repayment()) {
-            KButton(L.common_save()) { save() }.disabled(busy || !kosha.canWrite)
-        } content: {
-            if loan == nil {
-                Segmented([("lent", L.loans_lent()), ("borrowed", L.loans_borrowed())], selection: Binding(get: { direction }, set: { direction = $0; entry = nil; amount = nil }))
-                KField(L.loans_person(), text: $person)
-                KField(L.loans_purpose(), text: $purpose)
-            }
-            Segmented(([ ("new", L.loans_new_movement()), ("existing", L.loans_existing()) ]
-                + (loan == nil ? [("opening", L.loans_opening())] : [])), selection: Binding(get: { source }, set: { source = $0; entry = nil; amount = nil }))
-            Text(source == "opening" ? L.loans_opening_note() : source == "existing" ? L.loans_link_note() : L.loans_neutral()).kFont(.small)
-            if source == "existing" {
-                KButton(entry.map { $0.payee + " · " + $0.day } ?? L.loans_choose_entry(), style: .secondary) { picker = .entry }
-            } else if source == "opening" {
-                KButton(L.accounts_currency() + " · " + currency.uppercased(), style: .secondary) { picker = .currency }
+        let c = theme.colors
+        let title = editing ? L.loans_terms() : repayment ? L.loans_repayment() : L.loans_new()
+        Group {
+            if id != nil && loan == nil {
+                FormPage(title) { EmptyView() } content: {
+                    if let loadError { Text(loadError).kFont(.small).foregroundStyle(c.bad) } else { LoadingNote() }
+                }
             } else {
-                KButton(kosha.wallet(account)?.name ?? L.loans_choose_account(), style: .secondary) { picker = .account }
-            }
-            KButton(L.loans_principal() + " · " + Money.format(amount ?? 0, currency, Locale(identifier: L.language)), style: .secondary) { picker = .amount }
-                .disabled(source == "existing" && (loan == nil || entry?.currency == currency))
-            if let loan {
-                KButton(L.loans_full(), style: .secondary) { amount = loan.remaining }
-                    .disabled(source == "existing" && entry?.currency == currency)
-                if let amount, amount <= loan.remaining {
-                    Text(L.loans_after(amount: Money.format(loan.remaining - amount, currency, Locale(identifier: L.language))))
-                }
-                if bankCurrency != currency && source == "new" {
-                    KButton(L.loans_account_amount() + " · " + Money.format(bankAmount ?? 0, bankCurrency, Locale(identifier: L.language)), style: .secondary) { picker = .bankAmount }
+                FormPage(title) {
+                    KButton(frozen != nil ? L.common_try_again() : L.common_save()) { save() }
+                        .disabled(busy || !kosha.canWrite || !(valid || frozen != nil))
+                } content: {
+                    if !kosha.online { HintLine(icon: "wifi-slash", text: L.loans_offline()) }
+                    if let error { Text(error).kFont(.small).foregroundStyle(c.bad) }
+                    fields.disabled(frozen != nil || busy)
                 }
             }
-            if source != "existing" {
-                KButton(chosenDay.text, style: .secondary) { picker = .day }
-            }
-            if loan == nil {
-                KButton(due?.text ?? L.loans_due(), style: .secondary) { picker = .due }
-                if due != nil { KButton(L.loans_no_due(), style: .secondary) { due = nil } }
-                if source == "new" {
-                    let value = Money.format(amount ?? 0, currency, Locale(identifier: L.language))
-                    Text(direction == "lent"
-                         ? L.loans_lent_effect(amount: value, account: kosha.wallet(account)?.name ?? "", person: person, principal: value)
-                         : L.loans_borrowed_effect(amount: value, account: kosha.wallet(account)?.name ?? "", person: person, principal: value)).kFont(.small)
-                }
-            }
-            KField(L.tx_note(), text: $note)
         }
-        .task { restore() }
-        .onChange(of: draft) { _, value in
-            if restored && !completed { kosha.cache.write(draftKey, value) }
+        .task(id: "\(id ?? "")/\(kosha.meta == nil)") { await fill() }
+        .kSheet(item: $picker, scrolls: picker == .entry || picker == .currency) { sheet($0) }
+    }
+
+    private func fill() async {
+        guard !filled, kosha.meta != nil else { return }
+        if let id {
+            await loadLoan(kosha, id) { l in
+                if let v = l.value?.loan { loan = v } else if !l.refreshing { loadError = l.error ?? L.common_offline_body() }
+            }
+            guard let loan else { return }
+            direction = loan.direction
+            currency = loan.currency
+            if editing {
+                person = loan.person
+                purpose = loan.purpose
+                note = loan.note
+                due = loan.dueDay.flatMap(Day.init)
+            }
         }
-        .kSheet(item: $picker) { p in
-            switch p {
-            case .amount, .bankAmount:
-                KeypadSheet(p == .amount ? L.loans_principal() : L.loans_account_amount(), minor: p == .amount ? amount : bankAmount,
-                            currency: p == .amount ? currency : bankCurrency,
-                            onDone: { if p == .amount { amount = $0 } else { bankAmount = $0 }; picker = nil }, close: { picker = nil })
-            case .currency:
-                ListPicker(L.accounts_currency(), choices: (kosha.meta?.rates.keys.sorted() ?? [kosha.primary]).map {
-                    Choice(id: $0, title: $0.uppercased(), detail: currencyName($0, Locale(identifier: L.language)))
-                }, selected: currency, onPick: { openingCurrency = $0; picker = nil }, onClose: { picker = nil })
-            case .account:
-                AccountSheet(title: L.loans_choose_account(), selected: account, onPick: { account = $0; picker = nil }, close: { picker = nil })
-            case .day:
-                DateSheet(title: L.tx_date(), day: Binding(get: { chosenDay }, set: { day = $0 }), close: { picker = nil })
-            case .due:
-                DateSheet(title: L.loans_due(), day: Binding(get: { due ?? chosenDay }, set: { due = $0 }), close: { picker = nil })
-            case .entry:
-                LoanEntrySheet(income: income, currency: nil, since: loan?.day) { t in
-                    entry = t; day = Day(t.day); account = t.accountId
-                    if loan == nil || t.currency == currency { amount = abs(t.amount) } else { amount = nil }
-                    picker = nil
-                } close: { picker = nil }
+        accountId = kosha.activeWallets.first { $0.kind != .investment }?.id ?? kosha.activeWallets.first?.id
+        if loan == nil { currency = kosha.wallet(accountId)?.currency ?? kosha.primary }
+        day = kosha.today
+        filled = true
+    }
+
+    // MARK: Fields
+
+    private var account: Wallet? { kosha.wallet(accountId) }
+    /// A repayment from an account in another currency than the loan's: the bank amount is given apart.
+    private var cross: Bool { repayment && account != nil && account?.currency != currency }
+    /// Whether the bank movement brings money in.
+    private var moneyIn: Bool { repayment ? direction == "lent" : direction == "borrowed" }
+
+    private var valid: Bool {
+        let p = person.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard repayment || (!p.isEmpty && p.count <= 200), purpose.count <= 200, note.count <= 2000 else { return false }
+        if editing { return true }
+        guard let amount, amount > 0 else { return false }
+        if repayment, let loan, !LoanMath.validRepayment(amount, remaining: loan.remaining) { return false }
+        switch source {
+        case "opening": return !repayment
+        case "existing": return entry != nil
+        default: return account.map { !$0.isArchived } == true && (!cross || (bankAmount ?? 0) > 0)
+        }
+    }
+
+    @ViewBuilder
+    private var fields: some View {
+        let c = theme.colors
+        let loc = theme.locale
+        if !repayment {
+            if !editing {
+                Segmented([("lent", L.loans_lent()), ("borrowed", L.loans_borrowed())], selection: Binding(get: { direction }, set: {
+                    direction = $0
+                    if source == "existing" { clearEntry() }
+                }), small: true)
+            }
+            labelled(L.loans_person()) { KField(L.loans_person(), text: $person) }
+            labelled(L.loans_purpose()) { KField(loanFieldLabel(L.loans_purpose()), text: $purpose) }
+        }
+        if editing {
+            Card(tight: true) { dueRow }
+        } else {
+            sourceCard
+            HintLine(icon: "info", text: source == "opening" ? L.loans_opening_note() : source == "existing" ? L.loans_link_note()
+                     : L.loans_neutral())
+            if source == "existing" {
+                KButton(L.loans_choose_entry(), style: .secondary, size: .medium, icon: "link") { picker = .entry }
+            }
+            Card(tight: true) { movementRows(c, loc) }
+            if repayment, let loan {
+                let left = loan.remaining - (amount ?? 0)
+                HStack(spacing: 12) {
+                    let shown = inText(max(0, left), currency, theme)
+                    Text(figured(L.loans_after(amount: shown), [shown], size: 13, theme)).foregroundStyle(c.ink3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    KButton(L.loans_full(), style: .secondary, size: .small) { amount = loan.remaining }
+                        .disabled(source == "existing" && !cross)
+                }
+                if let amount, !LoanMath.validRepayment(amount, remaining: loan.remaining) {
+                    Text(L.loans_overpaid()).kFont(.small).foregroundStyle(c.bad)
+                }
+            }
+            if !repayment && source == "new", let amount, let account {
+                let money = inText(amount, currency, theme)
+                let who = person.trimmingCharacters(in: .whitespaces)
+                HintLine(icon: "arrows-left-right", text: direction == "lent"
+                         ? L.loans_lent_effect(amount: money, account: account.name, person: who, principal: money)
+                         : L.loans_borrowed_effect(amount: money, account: account.name, person: who, principal: money))
+            }
+        }
+        labelled(L.tx_note()) { KField(L.tx_note(), text: $note) }
+    }
+
+    /// New movement · Use existing entry · Already outstanding, as radio rows.
+    private var sourceCard: some View {
+        let sources = [("new", L.loans_new_movement()), ("existing", L.loans_existing())]
+            + (repayment ? [] : [("opening", L.loans_opening())])
+        return Card(tight: true) {
+            ForEach(Array(sources.enumerated()), id: \.element.0) { i, s in
+                if i > 0 { Hairline() }
+                ListRow(action: {
+                    guard source != s.0 else { return }
+                    source = s.0
+                    clearEntry()
+                }) {
+                    Text(s.1).frame(maxWidth: .infinity, alignment: .leading)
+                    Radio(source == s.0)
+                }
+                .accessibilityAddTraits(source == s.0 ? .isSelected : [])
             }
         }
     }
 
-    private func save() {
-        guard kosha.canWrite, !busy else { return }
-        guard kosha.online else { return toasts.show(L.loans_offline(), warning: true) }
-        guard let amount, amount > 0, amount <= 9_007_199_254_740_991 else { return toasts.show(L.loans_invalid_payment(), warning: true) }
-        if let loan, amount > loan.remaining { return toasts.show(L.loans_overpaid(), warning: true) }
-        guard chosenDay <= kosha.today, loan == nil || chosenDay.text >= loan!.day, due == nil || due! >= chosenDay else {
-            return toasts.show(L.loans_invalid_date(), warning: true)
+    @ViewBuilder
+    private func movementRows(_ c: KColors, _ loc: Locale) -> some View {
+        let existing = source == "existing"
+        if existing, let entry {
+            DetailRow(L.loans_account_amount()) {
+                Text(entry.accountName).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                MoneyText(Int64(entry.amount.magnitude), entry.currency)
+            }
+            Hairline()
         }
+        if source == "new" {
+            DetailRow(moneyIn ? L.loans_received_into() : L.loans_paid_from(), action: { picker = .account }) {
+                if let account {
+                    AccountDot(c.account(kosha.colorIndex(account.id)))
+                    Text(account.name).lineLimit(1)
+                } else {
+                    Text(L.loans_choose_account()).foregroundStyle(c.ink3)
+                }
+            }
+            Hairline()
+        }
+        if !repayment && source == "opening" {
+            DetailRow(L.accounts_currency(), action: { picker = .currency }) { Text(currency.uppercased()).kFont(.num) }
+            Hairline()
+        }
+        let amountLabel = repayment ? (cross ? L.loans_applied() : L.tx_amount())
+            : source == "opening" ? L.loans_starting() : L.loans_principal()
+        DetailRow(amountLabel, action: existing && !cross ? nil : { picker = .amount }) { amountText(amount, currency) }
+        if repayment && source == "new" && cross, let account {
+            Hairline()
+            DetailRow(L.loans_account_amount(), action: { picker = .bank }) { amountText(bankAmount, account.currency) }
+        }
+        Hairline()
+        DetailRow(L.tx_date(), action: existing ? nil : { picker = .day }) { Text(fmtDay(day, "dMMMy", loc)) }
+        if !repayment {
+            Hairline()
+            dueRow
+        }
+    }
+
+    private func amountText(_ minor: Int64?, _ currency: String) -> some View {
+        Group {
+            if let minor { MoneyText(minor, currency) } else {
+                Text(Money.format(0, currency, theme.locale)).kFont(.num).foregroundStyle(theme.colors.ink3)
+            }
+        }
+    }
+
+    private var dueRow: some View {
+        DetailRow(loanFieldLabel(L.loans_due()), action: { picker = .due }) {
+            Text(due.map { fmtDay($0, "dMMMy", theme.locale) } ?? L.loans_no_due())
+                .foregroundStyle(due == nil ? theme.colors.ink3 : theme.colors.ink)
+        }
+    }
+
+    private func labelled(_ label: String, @ViewBuilder field: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).kFont(.small).foregroundStyle(theme.colors.ink3)
+            field()
+        }
+    }
+
+    private func clearEntry() {
+        entry = nil
         if source == "existing" {
-            guard let entry, entry.canLinkLoan(income: income, currency: loan == nil ? currency : nil, since: loan?.day),
-                  (loan != nil && entry.currency != currency) || abs(entry.amount) == amount else {
-                return toasts.show(L.loans_invalid_payment(), warning: true)
+            amount = nil
+            bankAmount = nil
+        }
+    }
+
+    // MARK: Sheets
+
+    @ViewBuilder
+    private func sheet(_ p: LoanPicker) -> some View {
+        switch p {
+        case .amount:
+            KeypadSheet(repayment && cross ? L.loans_applied() : repayment ? L.tx_amount() : L.loans_principal(),
+                        minor: amount, currency: currency, onDone: { amount = $0; picker = nil }, close: { picker = nil })
+        case .bank:
+            KeypadSheet(L.loans_account_amount(), minor: bankAmount, currency: account?.currency ?? currency,
+                        onDone: { bankAmount = $0; picker = nil }, close: { picker = nil })
+        case .account:
+            AccountSheet(title: L.tx_account(), selected: accountId, onPick: { picked in
+                accountId = picked
+                if !repayment { currency = kosha.wallet(picked)?.currency ?? currency }
+                bankAmount = nil
+                picker = nil
+            }, close: { picker = nil })
+        case .currency:
+            let codes = Array(Set((kosha.meta?.rates ?? [:]).keys).union([currency])).sorted()
+            ListPicker(L.accounts_currency(), choices: codes.map { Choice(id: $0, title: $0.uppercased(), detail: currencyName($0, theme.locale)) },
+                       selected: currency, onPick: { currency = $0; picker = nil }, onClose: { picker = nil })
+        case .day:
+            DateSheet(title: L.tx_date(), day: $day, earliest: repayment ? loan.flatMap { Day($0.day) } : nil, close: { picker = nil })
+        case .due:
+            VStack(spacing: 8) {
+                DateSheet(title: loanFieldLabel(L.loans_due()), day: Binding(get: { due ?? day }, set: { due = $0 }),
+                          earliest: Day(loan?.day ?? "") ?? day, close: { picker = nil })
+                KButton(L.loans_no_due(), style: .secondary) { due = nil; picker = nil }
+            }
+        case .entry:
+            EntryPicker(moneyIn: moneyIn, after: repayment ? loan?.day : nil, close: { picker = nil }) { t in
+                entry = t
+                accountId = t.accountId
+                day = Day(t.day) ?? day
+                bankAmount = Int64(t.amount.magnitude)
+                if !repayment { currency = t.currency }
+                amount = t.currency == currency ? Int64(t.amount.magnitude) : nil
+                picker = nil
             }
         }
-        if source == "new" && !kosha.activeWallets.contains(where: { $0.id == account }) { return toasts.show(L.loans_choose_account(), warning: true) }
-        if loan != nil && source == "new" && bankCurrency != currency && (bankAmount ?? 0) <= 0 {
-            return toasts.show(L.loans_invalid_payment(), warning: true)
+    }
+
+    // MARK: Saving
+
+    private func save() {
+        guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
+        guard kosha.online else { error = L.loans_offline(); return }
+        let today = kosha.today
+        if frozen == nil {
+            let start = Day(loan?.day ?? "") ?? day
+            let badDay = !editing && (day > today || (repayment && day < start))
+            if badDay || (due.map { $0 < start } ?? false) { error = L.loans_invalid_date(); return }
         }
-        let name = person.trimmingCharacters(in: .whitespacesAndNewlines)
-        if loan == nil && (name.isEmpty || name.count > 200 || purpose.count > 200) { return toasts.show(L.loans_invalid_payment(), warning: true) }
-        guard note.count <= 2000 else { return toasts.show(L.loans_invalid_payment(), warning: true) }
-        var fields: [String: JSONValue?] = ["amount": .int(amount), "day": .string(chosenDay.text), "note": .string(note)]
-        if source == "existing" { fields["transactionId"] = entry.map { .string($0.id) } }
-        if source == "new" { fields["accountId"] = .string(account) }
-        if let loan {
-            fields["loanId"] = .string(loan.id)
-            if bankCurrency != currency && source == "new" { fields["accountAmount"] = bankAmount.map(JSONValue.int) }
-        } else {
-            fields.merge(["person": .string(name), "purpose": .string(purpose), "direction": .string(direction),
-                          "source": .string(source), "currency": .string(currency), "dueDay": due.map { .string($0.text) } ?? .null]) { _, new in new }
-        }
-        let content = jsonBody(fields)
-        var next = request ?? LoanRequest(content: content)
-        next.update(content)
-        request = next
-        kosha.cache.write(draftKey, draft)
-        let payload = next.body
-        let path = loan.map { "/api/v1/loans/\($0.id)/repayments" } ?? "/api/v1/loans"
+        let request = editing ? nil : frozen ?? LoanRequest(content: makeBody())
+        let body = request?.body ?? editBody()
+        if case .object(let fields) = body, editing && fields.count <= 1 { return dismiss() }
+        frozen = request
         busy = true
+        error = nil
+        let created = id == nil ? request?.id : nil
         Task {
-            let result = await kosha.write(toasts, offline: L.loans_offline()) {
-                try await kosha.api.send("POST", path, body: payload); return true
-            }
-            busy = false
-            if result == true {
-                completed = true
-                kosha.cache.write(draftKey, Optional<LoanDraft>.none)
-                close()
+            do {
+                if editing, let id {
+                    try await kosha.api.send("PATCH", "/api/v1/loans/\(id)", body: body)
+                } else {
+                    try await kosha.api.send("POST", repayment ? "/api/v1/loans/\(id ?? "")/repayments" : "/api/v1/loans", body: body)
+                }
+                busy = false
+                kosha.changed()
+                toasts.show(L.loans_saved())
+                dismiss()
+                if let created { nav.push(.loanDetail(id: created)) }
+            } catch KoshaError.api(let status, let e) {
+                busy = false
+                error = e.message
+                // A refusal is final: the next save is a new request. A server failure may have saved it.
+                if status < 500 { frozen = nil }
+            } catch {
+                busy = false
+                self.error = L.loans_offline()
             }
         }
+    }
+
+    /// Only what changed, so an edit never overwrites terms changed elsewhere since.
+    private func editBody() -> JSONValue {
+        guard let loan, let id else { return .object([:]) }
+        var fields: [String: JSONValue?] = ["id": .string(id)]
+        let p = person.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pu = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+        let n = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        if p != loan.person { fields["person"] = .string(p) }
+        if pu != loan.purpose { fields["purpose"] = .string(pu) }
+        if n != loan.note { fields["note"] = .string(n) }
+        if due?.text != loan.dueDay { fields["dueDay"] = due.map { .string($0.text) } ?? .null }
+        return jsonBody(fields)
+    }
+
+    /// A new loan or repayment; LoanRequest adds its id.
+    private func makeBody() -> JSONValue {
+        func text(_ s: String) -> JSONValue { .string(s.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        var fields: [String: JSONValue?] = [
+            "amount": .int(amount ?? 0), "day": .string(day.text), "note": text(note),
+        ]
+        if repayment {
+            fields["loanId"] = id.map(JSONValue.string)
+            if source == "existing" {
+                fields["transactionId"] = entry.map { .string($0.id) }
+                if cross { fields["accountAmount"] = bankAmount.map(JSONValue.int) }
+            } else {
+                fields["accountId"] = accountId.map(JSONValue.string)
+                if cross { fields["accountAmount"] = bankAmount.map(JSONValue.int) }
+            }
+        } else {
+            fields["direction"] = .string(direction)
+            fields["person"] = text(person)
+            fields["purpose"] = text(purpose)
+            fields["dueDay"] = due.map { .string($0.text) } ?? .null
+            fields["source"] = .string(source)
+            fields["currency"] = .string(currency)
+            if source == "new" { fields["accountId"] = accountId.map(JSONValue.string) }
+            if source == "existing" { fields["transactionId"] = entry.map { .string($0.id) } }
+        }
+        return jsonBody(fields)
     }
 }
 
-private struct LoanEntrySheet: View {
-    let income: Bool
-    let currency: String?
-    let since: String?
-    let pick: (Model.Transaction) -> Void
+/// Choose an existing entry: a search, and the entries that can be linked (the right direction, paid, not a transfer,
+/// recurring payment, refund or another loan's), newest first.
+private struct EntryPicker: View {
+    let moneyIn: Bool
+    /// A repayment can't come before its loan.
+    let after: String?
     let close: () -> Void
+    let onPick: (Model.Transaction) -> Void
     @Environment(Kosha.self) private var kosha
+    @Environment(\.kosha) private var theme
     @State private var query = ""
-    @State private var loaded = Loaded<TransactionList>()
+    @State private var list: [Model.Transaction]?
+    @State private var error: String?
+
     var body: some View {
-        VStack(spacing: 12) {
+        let c = theme.colors
+        let eligible = (list ?? []).filter { t in t.canLinkLoan(income: moneyIn, since: after) }
+        VStack(alignment: .leading, spacing: 8) {
             SheetHeader(L.loans_choose_entry(), onClose: close)
-            KField(L.loans_find(), text: $query)
-            ScrollView {
-                if let list = loaded.value {
-                    ForEach(list.transactions.filter { $0.canLinkLoan(income: income, currency: currency, since: since) && $0.day <= kosha.today.text }) { t in
-                        ListRow(action: { pick(t) }) {
-                            Text(t.payee + " · " + t.day + " · " + t.accountName)
-                            Spacer()
-                            MoneyText(t.amount, t.currency)
+            KField(L.loans_find(), text: $query, icon: "magnifying-glass")
+            if let error { Text(error).kFont(.small).foregroundStyle(c.bad) }
+            if list == nil && error == nil { LoadingNote() }
+            if list != nil && eligible.isEmpty { Text(L.loans_invalid_payment()).kFont(.small).foregroundStyle(c.ink3) }
+            VStack(spacing: 0) {
+                ForEach(eligible) { t in
+                    ListRow(action: { onPick(t) }) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t.payee.isEmpty ? L.tx_untitled() : t.payee).lineLimit(1)
+                            Text(loanDay(t.day, theme.locale) + " · " + t.accountName).kFont(.xs).foregroundStyle(c.ink3).lineLimit(1)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        MoneyText(t.amount, t.currency, sign: .always, color: t.amount > 0 ? c.pos : c.ink)
                     }
                 }
-                if let error = loaded.error { Text(error) }
-                if loaded.offline { Text(L.common_offline_body()) }
             }
         }
         .task(id: query) {
-            let q = query
-            await kosha.load("loan-entries/\(q)", into: { loaded = $0 }) {
-                try await $0.get("/api/v1/transactions", query: ["query": q, "limit": "100"])
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            do {
+                let page: TransactionList = try await kosha.api.get("/api/v1/transactions", query: [
+                    "query": query.trimmingCharacters(in: .whitespaces).isEmpty ? nil : String(query.prefix(40)),
+                    "from": after ?? "2000-01-01", "limit": "100",
+                ])
+                list = page.transactions
+                error = nil
+            } catch {
+                self.error = (error as? KoshaError)?.errorDescription ?? L.loans_offline()
             }
         }
     }
-}
-
-struct LoanTerms: View {
-    let loan: Loan
-    let close: () -> Void
-    @Environment(Kosha.self) private var kosha
-    @Environment(Toasts.self) private var toasts
-    @State private var person = ""
-    @State private var purpose = ""
-    @State private var note = ""
-    @State private var due: Day?
-    @State private var date = false
-    @State private var filled = false
-    @State private var busy = false
-    var body: some View {
-        VStack(spacing: 12) {
-            SheetHeader(L.loans_terms(), onClose: close)
-            KField(L.loans_person(), text: $person)
-            KField(L.loans_purpose(), text: $purpose)
-            KField(L.tx_note(), text: $note)
-            KButton(due?.text ?? L.loans_due(), style: .secondary) { date = true }
-            KButton(L.loans_no_due(), style: .secondary) { due = nil }
-            KButton(L.common_save()) {
-                guard !person.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      person.count <= 200, purpose.count <= 200, note.count <= 2000,
-                      due == nil || due!.text >= loan.day else { return toasts.show(L.loans_invalid_payment(), warning: true) }
-                var fields: [String: JSONValue?] = [:]
-                if person != loan.person { fields["person"] = .string(person) }
-                if purpose != loan.purpose { fields["purpose"] = .string(purpose) }
-                if note != loan.note { fields["note"] = .string(note) }
-                if due?.text != loan.dueDay { fields["dueDay"] = due.map { .string($0.text) } ?? .null }
-                let payload = jsonBody(fields)
-                busy = true
-                Task {
-                    let result = await kosha.write(toasts, offline: L.loans_offline()) {
-                        try await kosha.api.send("PATCH", "/api/v1/loans/\(loan.id)", body: payload); return true
-                    }
-                    busy = false
-                    if result == true { close() }
-                }
-            }.disabled(busy || !kosha.canWrite)
-        }
-        .onAppear {
-            guard !filled else { return }
-            person = loan.person; purpose = loan.purpose; note = loan.note; due = loan.dueDay.flatMap(Day.init); filled = true
-        }
-        .kSheet(isPresented: $date) { DateSheet(title: L.loans_due(), day: Binding(get: { due ?? kosha.today }, set: { due = $0 }), close: { date = false }) }
-    }
-}
-
-struct LoanFormScreen: View {
-    @Environment(\.dismiss) private var dismiss
-    var body: some View { LoanForm { dismiss() } }
 }

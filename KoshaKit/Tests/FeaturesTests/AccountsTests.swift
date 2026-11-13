@@ -59,10 +59,23 @@ private func wallet(_ json: String) -> Wallet { try! KoshaJSON.decode(Wallet.sel
     #expect(AccountsMath.range(o.series, 1).count == 1)
 }
 
+@Test func splitsALoansLayerThatChangesSign() throws {
+    // Borrowed first (−120), then lent more than that: one part per stack, so no band cuts across the chart.
+    let json = #"""
+    {"currency":"eur","month":"2026-11","today":"2026-11-07","loans":{"lent":200000,"borrowed":12000},
+    "series":[{"month":"2026-10","netWorth":880,"byAccount":{"a":1000},"loans":-120},{"month":"2026-11","netWorth":2880,"byAccount":{"a":1000},"loans":1880}]}
+    """#
+    let o = try KoshaJSON.decode(AccountsOverview.self, Data(json.utf8))
+    #expect(o.loans?.lent == 200000 && o.loans?.borrowed == 12000)
+    let layers = AccountsMath.layers(o.series, order: ["a"])
+    #expect(layers.map(\.id) == ["a", "loans", "loans"])
+    #expect(layers[1].values == [0, 1880] && layers[2].values == [-120, 0])
+}
+
 @Test func historicalLoanLayersUseEachPointsOwnBalance() throws {
     let overview = try KoshaJSON.decode(AccountsOverview.self, Data(#"{"currency":"eur","month":"2026-11","today":"2026-11-10","series":[{"month":"2026-10","netWorth":10000,"gains":0,"byAccount":{"bank":4000},"loans":6000},{"month":"2026-11","netWorth":10000,"gains":0,"byAccount":{"bank":7500},"loans":2500}]}"#.utf8))
     let layers = AccountsMath.layers(overview.series, order: ["bank"])
-    #expect(layers.first { $0.id == Categories.loanPrincipal }?.values == [6000, 2500])
+    #expect(layers.first { $0.id == AccountsMath.loansLayer }?.values == [6000, 2500])
     #expect(layers.first { $0.id == "bank" }?.values == [4000, 7500])
     #expect(overview.series.map(\.netWorth) == [10000, 10000])
 }

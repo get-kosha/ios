@@ -37,7 +37,10 @@ struct TxDetailScreen: View {
         VStack(spacing: 0) {
             DetailHeader(label: headerLabel, saved: status == "saved") { dismiss() }
             if let t {
-                ScrollView { content(t).padding(.horizontal, 16).padding(.bottom, 40) }
+                ScrollView {
+                    Group { if let loan = t.loan { loanContent(t, loan) } else { content(t) } }
+                        .padding(.horizontal, 16).padding(.bottom, 40)
+                }
             } else {
                 Group {
                     if loaded?.refreshing != false { LoadingNote() } else {
@@ -68,6 +71,7 @@ struct TxDetailScreen: View {
 
     private var kindLabel: String {
         guard let t else { return "" }
+        if t.loan != nil { return L.loans_title() }
         if t.refundOf != nil { return L.tx_kind_refund() }
         if Categories.isNeutral(t.categoryId) { return L.tx_kind_correction() }
         return t.amount > 0 ? L.tx_kind_income() : L.tx_kind_expense()
@@ -82,14 +86,12 @@ struct TxDetailScreen: View {
     }
 
     private func edit(_ s: DetailSheet) {
-        if t?.loan != nil || t?.categoryId == Categories.loanPrincipal { toasts.show(L.loans_edit_payment(), warning: true); return }
         if kosha.canWrite { sheet = s } else { toasts.show(L.common_demo_read_only(), warning: true) }
     }
 
     /// Saves one change. A reconciled entry asks first when the change touches its amount, account or day.
     private func save(_ change: [String: JSONValue], touchesReconciled: Bool) {
         guard let t else { return }
-        guard t.loan == nil, t.categoryId != Categories.loanPrincipal else { return toasts.show(L.loans_edit_payment(), warning: true) }
         guard kosha.canWrite else { return toasts.show(L.common_demo_read_only(), warning: true) }
         if t.reconciled && touchesReconciled {
             pending = change
@@ -112,13 +114,21 @@ struct TxDetailScreen: View {
         }
     }
 
+    /// A loan's funding or repayment is changed from the loan, as on the web.
+    private func loanContent(_ t: Model.Transaction, _ loan: LoanLink) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            MoneyText(t.amount, t.currency, sign: .always, font: .figure(40, .medium))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+            Text(loan.person.isEmpty ? t.payee : loan.person).kFont(.head).frame(maxWidth: .infinity)
+            HintLine(icon: "info", text: L.loans_edit_payment())
+            KButton(L.loans_title(), style: .secondary, icon: "hand-coins") { nav.push(.loanDetail(id: loan.id)) }
+        }
+    }
+
     @ViewBuilder
     private func content(_ t: Model.Transaction) -> some View {
         let c = theme.colors
-        if let loan = t.loan {
-            KButton(L.loans_title() + " · " + loan.person, style: .secondary) { nav.push(.loanDetail(id: loan.id)) }
-            Text(L.loans_edit_payment()).kFont(.small)
-        }
         let neutral = Categories.isNeutral(t.categoryId)
         let category = kosha.category(t.categoryId)
         VStack(spacing: 12) {
@@ -161,14 +171,14 @@ struct TxDetailScreen: View {
                     Text((Day(t.day).map { dayText($0, theme.locale, weekday: true, year: true) } ?? t.day)
                          + " · " + DayFormat.time(t.hhmm, theme.locale))
                 }
-                if t.refundOf == nil && t.loan == nil && t.categoryId != Categories.loanPrincipal { typeRow(t) }
+                if t.refundOf == nil { typeRow(t) }
             }
             tagsCard(t)
             if kosha.meta?.attachments == true { AttachmentsCard(t: t) { edit(.attach) } }
             if t.canRefund { RefundsCard(t: t) }
             if t.reconciled { ReconciledNote() }
             if !t.payee.trimmingCharacters(in: .whitespaces).isEmpty { AtPayee(payee: t.payee) }
-            if kosha.canWrite && t.loan == nil && t.categoryId != Categories.loanPrincipal {
+            if kosha.canWrite {
                 if t.refundOf == nil {
                     LinkCard(icon: "arrows-clockwise", label: L.add_make_recurring()) {
                         nav.push(.recurringForm(fromTransaction: t.id))

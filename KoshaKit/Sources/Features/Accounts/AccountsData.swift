@@ -12,13 +12,21 @@ struct AccountsOverview: Codable, Sendable {
     @D var ratesUpdated: Int64
     @D var series: [Point]
     @D var accounts: [String: Flow]
+    /// What is still owed on personal loans, in the display currency at today's rates.
+    var loans: LoanTotals?
 
     struct Point: Codable, Sendable, Hashable {
         var month: String
         var netWorth: Double
-        var loans: Double?
         @D var gains: Double
         @D var byAccount: [String: Double]
+        /// Loans' net worth at the month's end: owed to you less what you owe.
+        @D var loans: Double
+    }
+
+    struct LoanTotals: Codable, Sendable {
+        @D var lent: Int64
+        @D var borrowed: Int64
     }
 
     struct Flow: Codable, Sendable {
@@ -95,16 +103,25 @@ enum AccountsMath {
         months.map { Array(series.suffix($0)) } ?? series
     }
 
-    /// One layer per account in the given order (only those with any value), then the gains layer if there are gains.
+    /// The chart layer for personal loans: owed to you less what you owe.
+    static let loansLayer = "loans"
+
+    /// One layer per account in the given order (only those with any value), then loans and gains if they have any.
+    /// A layer that is above zero in some months and below in others (loans, an overdrawn account) is split into its
+    /// positive and negative parts, so each part stays in its own stack instead of cutting across the chart.
+
     static func layers(_ points: [AccountsOverview.Point], order: [String]) -> [Layer] {
         var ids = order
         for p in points { for k in p.byAccount.keys.sorted() where !ids.contains(k) { ids.append(k) } }
         let accounts = ids.map { id in Layer(id: id, values: points.map { $0.byAccount[id] ?? 0 }) }
             .filter { $0.values.contains { $0.rounded() != 0 } }
-        let loans = Layer(id: "loan_principal", values: points.map { $0.loans ?? 0 })
-        let withLoans = loans.values.contains { $0 != 0 } ? accounts + [loans] : accounts
+        let loans = Layer(id: loansLayer, values: points.map(\.loans))
         let gains = Layer(id: nil, values: points.map(\.gains))
-        return gains.values.contains { $0.rounded() != 0 } ? withLoans + [gains] : withLoans
+        return (accounts + [loans, gains].filter { $0.values.contains { $0.rounded() != 0 } }).flatMap { l in
+            l.values.contains { $0.rounded() > 0 } && l.values.contains { $0.rounded() < 0 }
+                ? [Layer(id: l.id, values: l.values.map { max($0, 0) }), Layer(id: l.id, values: l.values.map { min($0, 0) })]
+                : [l]
+        }
     }
 
     /// Stacks layers by sign, as recharts' stackOffset "sign": positive values pile up from zero, negative ones (card

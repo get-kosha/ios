@@ -55,16 +55,16 @@ struct AccountsScreen: View {
             ) {
                 IconButton("plus", label: L.accounts_new(), solid: true, color: c.ink) { nav.push(.accountForm()) }
             }
-            HStack {
-                Text(L.accounts_title()).kFont(.head)
-                KButton(L.loans_title(), style: .secondary, size: .small) { nav.push(.loans) }
-            }.padding(.horizontal, 16)
             TabBanners()
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
+                    AccountLoansSwitch(loans: false)
                     if let o = overview.value {
                         Hero(o: o, wallets: wallets)
                         RatesNote(o: o, open: open, display: display)
+                        let loans = o.loans.map { ($0.lent, $0.borrowed) }
+                            ?? LoanMath.totals(kosha.meta?.loans ?? [], to: o.currency, perUsd: kosha.meta?.rates ?? [:])
+                        AccountsLoansLink(lent: loans.0, borrowed: loans.1, currency: o.currency)
                     } else if overview.refreshing {
                         Skeleton(height: 280)
                     } else {
@@ -202,6 +202,7 @@ private struct Hero: View {
 /// A layer's colour: the account's own, or shades of ink in neutral mode; gains are a light ink band.
 private func layerColor(_ c: KColors, _ id: String?, _ index: Int, _ k: Int) -> Color {
     if id == nil { return c.ink3.opacity(0.35) }
+    if id == AccountsMath.loansLayer { return c.ink2.opacity(0.5) }
     if c.neutral { return c.ink.opacity([0.85, 0.6, 0.42, 0.28, 0.18, 0.1][k % 6]) }
     return c.account(index).opacity(0.85)
 }
@@ -275,12 +276,15 @@ private struct WorthChart: View {
             // The key, two columns.
             let keys = layers.enumerated().map { k, l -> (String, Color) in
                 let w = wallets.first { $0.id == l.id }
-                let name = l.id == Categories.loanPrincipal ? L.loans_title() : l.id == nil ? L.accounts_chart_gains() : w == nil ? L.accounts_chart_other()
+                let name = l.id == nil ? L.accounts_chart_gains() : l.id == AccountsMath.loansLayer ? L.loans_title()
+                    : w == nil ? L.accounts_chart_other()
                     : l.values.allSatisfy { $0 <= 0 } ? L.app_acc_owed(account: w!.name) : w!.name
                 return (name, layerColor(c, l.id, index(l.id), k))
             }
+            // A layer split by sign has one key.
+            let shownKeys = keys.indices.filter { i in i == 0 || layers[i].id != layers[i - 1].id }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], alignment: .leading, spacing: 6) {
-                ForEach(keys.indices, id: \.self) { i in
+                ForEach(shownKeys, id: \.self) { i in
                     HStack(spacing: 6) {
                         Circle().fill(keys[i].1).frame(width: 8, height: 8)
                         Text(keys[i].0).kFont(.xs).foregroundStyle(c.ink2).lineLimit(1)

@@ -1,12 +1,13 @@
 import Foundation
 
 /// Money rules shared by every screen, ported from ../kosha-web/src/lib/core.ts. Category "0" (balance corrections)
-/// and "transfer" are neutral: neither income nor spending. "transfer_fee" counts as spending.
+/// "transfer" and "loan_principal" are neutral: neither income nor spending. "transfer_fee" counts as spending.
 public enum Categories {
     public static let correction = "0"
     public static let transfer = "transfer"
-    public static let loanPrincipal = "loan_principal"
     public static let transferFee = "transfer_fee"
+    /// Principal moving between an account and a personal loan.
+    public static let loanPrincipal = "loan_principal"
 
     public static func isNeutral(_ id: String) -> Bool { id == correction || id == transfer || id == loanPrincipal }
 

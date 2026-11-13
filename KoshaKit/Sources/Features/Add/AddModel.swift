@@ -728,8 +728,9 @@ final class AddModel {
 
     /// Starts from an existing entry (GET /api/app/transactions/{id}) with today's date.
     private func duplicate(_ id: String) async {
-        guard let tx: Model.Transaction = try? await kosha.api.get("/api/app/transactions/\(id)") else { return }
-        guard tx.loan == nil, tx.categoryId != Categories.loanPrincipal else { return }
+        // A copy of a loan's entry would move principal without the loan, so it isn't copied.
+        guard let tx: Model.Transaction = try? await kosha.api.get("/api/app/transactions/\(id)"),
+              tx.loan == nil, tx.categoryId != Categories.loanPrincipal else { return }
         if let link = tx.transfer {
             kind = .transfer
             if active.contains(where: { $0.id == tx.accountId }) { accountId = tx.accountId; accountPicked = true }

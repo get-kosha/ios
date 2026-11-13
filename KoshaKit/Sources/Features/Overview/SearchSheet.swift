@@ -146,22 +146,30 @@ struct SearchSheet: View {
         let cats = low.isEmpty ? [] : Array((kosha.meta?.categories ?? [])
             .filter { !$0.isArchived && !Categories.isSystem($0.id) && $0.name.lowercased().contains(low) }.prefix(4))
         let accounts = low.isEmpty ? [] : Array(kosha.activeWallets.filter { $0.name.lowercased().contains(low) }.prefix(3))
+        let loans = low.isEmpty ? [] : Array((kosha.meta?.loans ?? [])
+            .filter { "\($0.person) \($0.purpose)".lowercased().contains(low) }.prefix(5))
         let pages: [(String, String, () -> Void)] = [
             ("arrows-clockwise", L.shell_nav_recurring(), { nav.open(.recurring) }),
-            ("hand-coins", L.loans_title(), { nav.push(.loans) }),
             ("bank", L.shell_nav_accounts(), { nav.open(.accounts) }),
+            ("hand-coins", L.loans_title(), { nav.push(.loans) }),
             ("tray-arrow-down", L.shell_page_import(), { nav.push(.importStatements) }),
             ("scales", L.shell_page_reconcile(), { nav.push(.reconcile()) }),
             ("gear", L.shell_settings(), { nav.push(.settings()) }),
         ].filter { low.isEmpty || $0.1.lowercased().contains(low) }
+        if !loans.isEmpty {
+            group(L.loans_title())
+            ForEach(loans) { loan in
+                result(icon: { IconTile("hand-coins") }, title: loan.person,
+                       sub: [loan.purpose, Money.format(loan.remaining, loan.currency, theme.locale)].filter { !$0.isEmpty }
+                           .joined(separator: " · "),
+                       end: "arrow-right") { go { nav.push(.loanDetail(id: loan.id)) } }
+            }
+        }
         if !cats.isEmpty || !accounts.isEmpty || !pages.isEmpty || !text.isEmpty { group(L.shell_search_go_to()) }
         if !text.isEmpty {
             result(icon: { IconTile("magnifying-glass") }, title: L.shell_search_activity(text: text)) {
                 go { nav.openActivity(ActivitySearch(query: String(text.prefix(40)))) }
             }
-        }
-        ForEach((kosha.meta?.loans ?? []).filter { !low.isEmpty && ($0.person + " " + $0.purpose).localizedCaseInsensitiveContains(low) }) { loan in
-            result(icon: { IconTile("hand-coins") }, title: loan.person, sub: loan.purpose) { go { nav.push(.loanDetail(id: loan.id)) } }
         }
         ForEach(cats) { cat in
             result(icon: { IconTile(categoryIconName(cat.icon)) }, title: cat.name, sub: L.shell_nav_activity()) {

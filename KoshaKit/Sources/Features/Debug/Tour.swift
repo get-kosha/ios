@@ -39,6 +39,12 @@ public enum Tour {
         case "exchanges": nav.tab = .accounts; nav.push(.exchanges)
         case "reconcile": nav.tab = .accounts; nav.push(.reconcile())
         case "import": nav.tab = .accounts; nav.push(.importStatements)
+        case "loans": nav.tab = .accounts; nav.push(.loans)
+        case "loan-detail":
+            nav.tab = .accounts
+            nav.push(.loans)
+            if let l = kosha.meta?.loans.first(where: \.open) { nav.push(.loanDetail(id: l.id)) }
+        case "loan-form": nav.tab = .accounts; nav.push(.loans); nav.push(.loanForm())
         case "recurring-form": nav.tab = .recurring; nav.push(.recurringForm())
         case "ask": nav.push(.ask())
         case let s where s.hasPrefix("settings-"):
