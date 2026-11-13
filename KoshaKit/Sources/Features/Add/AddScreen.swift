@@ -276,7 +276,7 @@ private struct AddForm: View {
     /// The payee: the only text field on Add. "usually €28" or AI's sparkle sit on the right, a clear button while typing.
     private var payeeField: some View {
         let c = theme.colors
-        let usual = model.match?.averageAmount.flatMap { $0 == 0 ? nil : $0 }
+        let usual = model.match?.usualAmount.flatMap { $0 == 0 ? nil : $0 }
         return HStack(spacing: 8) {
             TextField("", text: Binding(get: { model.payee }, set: { model.typePayee($0) }),
                       prompt: Text(L.add_payee()).foregroundStyle(c.ink3))
@@ -351,8 +351,8 @@ private struct AddForm: View {
                 if !detail.isEmpty { Text(detail).kFont(.small).foregroundStyle(c.ink3) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if let avg = p.averageAmount, avg != 0, let cur = p.currency {
-                Text(L.add_usually(amount: Money.format(abs(avg), cur, theme.locale))).kFont(.small).foregroundStyle(c.ink3)
+            if let usual = p.usualAmount, usual != 0, let cur = p.currency {
+                Text(L.add_usually(amount: Money.format(abs(usual), cur, theme.locale))).kFont(.small).foregroundStyle(c.ink3)
                     .multilineTextAlignment(.trailing).frame(maxWidth: 96, alignment: .trailing).money()
             }
         }

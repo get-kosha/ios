@@ -108,3 +108,10 @@ private func dates(_ p: [String: String?]) -> [String?] { ["month", "from", "to"
     #expect(plainAmount(2000) == "20")
     #expect(plainAmount(-1250) == "12.5")
 }
+
+@Test func payeeHistoryUsualIsOptional() throws {
+    let h = try KoshaJSON.decode(PayeeHistory.self, Data(#"{"count":3,"usual":{"amount":-2850,"currency":"eur"}}"#.utf8))
+    #expect(h.usual?.amount == -2850 && h.usual?.currency == "eur")
+    #expect(try KoshaJSON.decode(PayeeHistory.self, Data(#"{"count":3,"usual":null}"#.utf8)).usual == nil)
+    #expect(try KoshaJSON.decode(PayeeHistory.self, Data(#"{"count":3,"thisYear":[]}"#.utf8)).usual == nil)
+}

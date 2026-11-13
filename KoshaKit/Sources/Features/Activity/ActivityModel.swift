@@ -177,11 +177,12 @@ struct Attachment: Codable, Hashable, Sendable, Identifiable {
     @D var size: Int64
 }
 
-/// GET /api/app/payee-history: how often this payee comes up and this year's payments (finance.server.ts payeeHistory).
+/// GET /api/app/payee-history: how often this payee comes up and the amount entered most often (finance.server.ts
+/// payeeHistory); `usual` is nil without one or from an older server.
 struct PayeeHistory: Codable, Sendable {
     @D var count: Int
-    @D var thisYear: [Row]
-    struct Row: Codable, Sendable {
+    var usual: Usual?
+    struct Usual: Codable, Sendable {
         @Rounded var amount: Int64
         var currency: String
     }

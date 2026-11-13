@@ -185,7 +185,8 @@ public struct Payee: Codable, Sendable, Hashable {
     public var categoryId: String?
     public var accountId: String?
     public var currency: String?
-    public var averageAmount: Int64?
+    /// The amount entered most often (search_payees usualAmount); nil from an older server.
+    public var usualAmount: Int64?
 }
 
 public struct Payees: Codable, Sendable { public var payees: [Payee] }

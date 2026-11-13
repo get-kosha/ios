@@ -136,9 +136,9 @@ struct SearchSheet: View {
             ForEach(payees, id: \.payee) { py in
                 let cat = kosha.category(py.categoryId)
                 result(icon: { IconTile(categoryIconName(cat?.icon)) }, title: py.payee,
-                       sub: py.averageAmount.map { avg in
+                       sub: py.usualAmount.map { usual in
                            L.shell_search_payee_usually(count: "\(py.count)",
-                                                        amount: Money.format(abs(avg), py.currency ?? kosha.primary, theme.locale))
+                                                        amount: Money.format(abs(usual), py.currency ?? kosha.primary, theme.locale))
                        },
                        end: "arrow-up-right") { go { nav.openActivity(ActivitySearch(query: py.payee)) } }
             }

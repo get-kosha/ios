@@ -541,9 +541,8 @@ struct AtPayee: View {
         Group {
             if let h = history, h.count >= 2, let rates = kosha.meta?.rates {
                 let shown = kosha.display
-                // The usual amount is this year's average, as the web's panel shows it.
-                let usual: Int64? = h.thisYear.isEmpty ? nil
-                    : abs(h.thisYear.reduce(0) { $0 + convert($1.amount, from: $1.currency, to: shown, perUsd: rates) }) / Int64(h.thisYear.count)
+                // The amount entered most often, as the server counts it, in the shown currency.
+                let usual = h.usual.map { abs(convert($0.amount, from: $0.currency, to: shown, perUsd: rates)) }
                 LinkCard(
                     icon: "storefront", label: L.tx_at_payee(),
                     sub: usual.map { L.shell_search_payee_usually(count: String(h.count), amount: Money.format($0, shown, theme.locale)) }
