@@ -319,7 +319,7 @@ public struct AmountSheet: View {
     }
 
     /// Minor units as keypad input: 1250 is "12.5", 120000 yen "1200".
-    public static func text(_ minor: Int64, _ currency: String) -> String {
+    nonisolated public static func text(_ minor: Int64, _ currency: String) -> String {
         let value = Decimal(minor.magnitude) / 100
         let d = Money.decimals(currency)
         var s = NSDecimalNumber(decimal: value.rounded(d)).stringValue

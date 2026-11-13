@@ -65,7 +65,7 @@ struct AttachmentsCard: View {
                 KButton(L.common_remove(), style: .danger) {
                     removing = nil
                     Task {
-                        let done = await kosha.write(toasts) { try await kosha.api.send("DELETE", "/api/app/attachments/\(a.id)") }
+                        let done: Void? = await kosha.write(toasts) { try await kosha.api.send("DELETE", "/api/app/attachments/\(a.id)") }
                         if done != nil { toasts.show(L.tx_removed()) }
                     }
                 }

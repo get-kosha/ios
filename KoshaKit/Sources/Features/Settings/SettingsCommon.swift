@@ -388,8 +388,8 @@ struct SRow<Trailing: View, Extra: View>: View {
 
     init(
         _ title: String, description: String? = nil, icon: String? = nil, descriptionColor: Color? = nil,
-        // `trailing` comes before `titleExtra`, so `SRow(...) { button }` puts the button on the right.
-        action: (() -> Void)? = nil, @ViewBuilder trailing: () -> Trailing = { EmptyView() },
+        // Required content keeps a trailing view closure from binding to the optional tap action.
+        action: (() -> Void)? = nil, @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder titleExtra: () -> Extra = { EmptyView() }
     ) {
         self.title = title

@@ -184,7 +184,7 @@ private struct ArchiveRow: View {
                 let id = w.id
                 let toast = archived ? L.accounts_archived_toast(name: w.name) : L.accounts_restored_toast(name: w.name)
                 Task {
-                    let ok = await kosha.run(toasts) { api in
+                    let ok: Void? = await kosha.run(toasts) { api in
                         try await api.send("PATCH", "/api/v1/accounts/\(id)", body: jsonBody(["archived": .bool(archived)]))
                     }
                     if ok != nil { toasts.show(toast) }
@@ -200,7 +200,7 @@ private struct ArchiveRow: View {
                          confirm: L.accounts_delete_account(), onConfirm: {
                 let id = w.id
                 Task {
-                    let ok = await kosha.run(toasts) { api in try await api.send("DELETE", "/api/v1/accounts/\(id)") }
+                    let ok: Void? = await kosha.run(toasts) { api in try await api.send("DELETE", "/api/v1/accounts/\(id)") }
                     confirm = false
                     if ok != nil { dismiss() }
                 }
@@ -354,7 +354,7 @@ struct FixBalanceSheet: View {
                 let done = correction != 0 ? L.accounts_corrected_by(amount: inText(correction, w.currency, theme, sign: .always))
                     : L.accounts_balance_matches()
                 Task {
-                    let ok = await kosha.run(toasts) { api in
+                    let ok: Void? = await kosha.run(toasts) { api in
                         try await api.send("PATCH", "/api/v1/accounts/\(id)", body: jsonBody(["balance": .int(target)]))
                     }
                     if ok != nil {
@@ -439,7 +439,7 @@ struct GainsSheet: View {
                     "note": .string(note.trimmingCharacters(in: .whitespaces)),
                 ])])])
                 Task {
-                    let ok = await kosha.run(toasts) { api in try await api.send("POST", "/api/v1/gains", body: fields) }
+                    let ok: Void? = await kosha.run(toasts) { api in try await api.send("POST", "/api/v1/gains", body: fields) }
                     if ok != nil {
                         toasts.show(L.overview_gain_updated())
                         close()

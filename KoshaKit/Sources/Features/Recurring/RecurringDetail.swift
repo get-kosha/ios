@@ -237,7 +237,7 @@ struct RecurringDetailScreen: View {
 
     private func act(_ s: Sub, _ instance: Instance, _ status: String, _ done: String) {
         Task {
-            let ok = await kosha.run(toasts) { api in
+            let ok: Void? = await kosha.run(toasts) { api in
                 try await api.send("PATCH", "/api/v1/recurring/\(s.id)/payments/\(instance.dueDay)", body: jsonBody(["status": .string(status)]))
             }
             if ok != nil { toasts.show(done) }
@@ -250,7 +250,7 @@ struct RecurringDetailScreen: View {
         let start = Day(s.startDay) ?? today
         let next = start >= today ? start : Schedule.next(start, every: s.n, unit: s.period, end: nil, from: today) ?? today
         Task {
-            let ok = await kosha.run(toasts) { api in
+            let ok: Void? = await kosha.run(toasts) { api in
                 try await api.send("PATCH", "/api/v1/recurring/\(s.id)", body: jsonBody(["endDay": .null, "startDay": .string(next.text)]))
             }
             if ok != nil { toasts.show(L.subs_resumed_toast(name: s.name)) }
@@ -266,7 +266,7 @@ struct RecurringDetailScreen: View {
             ConfirmSheet(title: L.subs_end_title(name: s.name), text: L.subs_end_description(), confirm: endShort(s.group), onConfirm: {
                 let today = kosha.today.text
                 Task {
-                    let ok = await kosha.run(toasts) { api in
+                    let ok: Void? = await kosha.run(toasts) { api in
                         try await api.send("PATCH", "/api/v1/recurring/\(s.id)", body: jsonBody(["endDay": .string(today)]))
                     }
                     open = nil
@@ -276,7 +276,7 @@ struct RecurringDetailScreen: View {
         case .delete:
             ConfirmSheet(title: L.subs_delete_title(name: s.name), text: L.subs_delete_description(), confirm: L.common_delete(), onConfirm: {
                 Task {
-                    let ok = await kosha.run(toasts) { api in try await api.send("DELETE", "/api/v1/recurring/\(s.id)") }
+                    let ok: Void? = await kosha.run(toasts) { api in try await api.send("DELETE", "/api/v1/recurring/\(s.id)") }
                     open = nil
                     if ok != nil {
                         toasts.show(L.subs_deleted())
@@ -483,7 +483,7 @@ struct PaymentSheet: View {
     private func resetRegular() {
         let path = "/api/v1/recurring/\(s.id)/payments/\(instance.dueDay)"
         Task {
-            let ok = await kosha.run(toasts) { api in try await api.send("PATCH", path, body: jsonBody(["status": .string("scheduled")])) }
+            let ok: Void? = await kosha.run(toasts) { api in try await api.send("PATCH", path, body: jsonBody(["status": .string("scheduled")])) }
             if ok != nil { close() }
         }
     }

@@ -37,10 +37,11 @@ struct ProfilePage: View {
                 VStack(spacing: 10) {
                     ProfileAvatar(size: 88)
                     if m?.avatars == true {
+                        let photoLabel = busy ? L.settings_profile_saving()
+                            : m?.user?.image != nil ? L.settings_profile_change() : L.settings_profile_upload()
                         HStack(spacing: 8) {
                             PhotosPicker(selection: $pick, matching: .images) {
-                                PickLabel(text: busy ? L.settings_profile_saving()
-                                          : m?.user?.image != nil ? L.settings_profile_change() : L.settings_profile_upload())
+                                PickLabel(text: photoLabel)
                             }
                             .disabled(busy || kosha.demo)
                             if m?.user?.image != nil {

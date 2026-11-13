@@ -154,7 +154,7 @@ struct RecurringScreen: View {
     private func dismiss(_ g: Suggestion) {
         hidden.insert(g.payee)
         Task {
-            let done = await kosha.run(toasts) { api in
+            let done: Void? = await kosha.run(toasts) { api in
                 try await api.send("POST", "/api/v1/recurring/suggestions/dismiss", body: jsonBody(["payee": .string(g.payee)]))
             }
             if done == nil { hidden.remove(g.payee) }

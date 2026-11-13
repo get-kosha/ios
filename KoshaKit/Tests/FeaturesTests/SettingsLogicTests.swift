@@ -1,11 +1,27 @@
 import Foundation
 import Testing
+import SwiftUI
 import Model
+import Design
 @testable import Features
 
 // The same cases as the Android app's settings LogicTest.kt.
 
 private func account(_ json: String) -> AccountSummary { try! KoshaJSON.decode(AccountSummary.self, Data(json.utf8)) }
+
+@MainActor @Test func settingsRowKeepsControlsInItsTrailingContent() {
+    let row = SRow("Export") { KButton("Download") {} }
+    #expect(row.action == nil)
+    #expect(type(of: row.trailing) == KButton.self)
+    #expect(type(of: row.titleExtra) == EmptyView.self)
+
+    var tapped = false
+    let actionable = SRow("Event", action: { tapped = true }) { Text("3") }
+    #expect(!tapped)
+    #expect(type(of: actionable.trailing) == Text.self)
+    actionable.action?()
+    #expect(tapped)
+}
 
 @Test func securityStepsCountBackupCodesOnlyWithTwoFactor() {
     let none = account(#"{"hasPassword":true,"passkeys":0,"twoFactor":false}"#)
