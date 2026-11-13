@@ -67,6 +67,8 @@ extension L {
     public static func auth_login_description() -> String { L.text("auth_login_description", [:]) }
     public static func auth_google_not_linked() -> String { L.text("auth_google_not_linked", [:]) }
     public static func auth_google_failed() -> String { L.text("auth_google_failed", [:]) }
+    public static func auth_apple_not_linked() -> String { L.text("auth_apple_not_linked", [:]) }
+    public static func auth_apple_failed() -> String { L.text("auth_apple_failed", [:]) }
     public static func auth_error_rate_limited() -> String { L.text("auth_error_rate_limited", [:]) }
     public static func auth_error_wrong_password() -> String { L.text("auth_error_wrong_password", [:]) }
     public static func auth_error_invalid_email() -> String { L.text("auth_error_invalid_email", [:]) }
@@ -102,9 +104,11 @@ extension L {
     public static func auth_sign_in_passkey() -> String { L.text("auth_sign_in_passkey", [:]) }
     public static func auth_passkey() -> String { L.text("auth_passkey", [:]) }
     public static func auth_sign_in_google() -> String { L.text("auth_sign_in_google", [:]) }
+    public static func auth_sign_in_apple() -> String { L.text("auth_sign_in_apple", [:]) }
     public static func auth_just_looking() -> String { L.text("auth_just_looking", [:]) }
     public static func auth_or() -> String { L.text("auth_or", [:]) }
     public static func auth_sign_up_google() -> String { L.text("auth_sign_up_google", [:]) }
+    public static func auth_sign_up_apple() -> String { L.text("auth_sign_up_apple", [:]) }
     public static func auth_agree() -> String { L.text("auth_agree", [:]) }
     public static func auth_demo_own_account() -> String { L.text("auth_demo_own_account", [:]) }
     public static func auth_phone_no_account() -> String { L.text("auth_phone_no_account", [:]) }
