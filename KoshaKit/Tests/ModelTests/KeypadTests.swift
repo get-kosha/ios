@@ -103,6 +103,19 @@ private func dec(_ s: String) -> Decimal { Decimal(string: s)! }
     #expect(Money.affixes("eur", de) == ("", "\u{a0}€"))
 }
 
+@Test func moneyInTheCurrencysHomeGrouping() {
+    // The same cases as the web's core.test.ts: English writes each currency the way its home country groups digits.
+    let uk = Money.locale("en")
+    #expect(Money.format(1_367_828_176, "inr", uk) == "₹1,36,78,281.76")
+    #expect(Money.format(123_456_789, "chf", uk) == "CHF\u{a0}1'234'567.89")
+    // Symbols stay British where the digits match: US$, not $.
+    #expect(Money.format(123_456, "usd", uk) == "US$1,234.56")
+    #expect(Money.locale(for: "usd", uk) == uk)
+    // Other languages keep their own format, and the keypad's affixes keep the language's.
+    #expect(Money.format(1_367_828_176, "inr", Money.locale("de")) == "13.678.281,76\u{a0}₹")
+    #expect(Money.affixes("sek", uk) == ("SEK", ""))
+}
+
 @Test func datesInTheUsersZone() {
     // 23:30 UTC on 31 Oct is already 1 Nov in Berlin: days follow the user's zone, not the phone's.
     let now = ISO8601DateFormatter().date(from: "2026-10-31T23:30:00Z")!

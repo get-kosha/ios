@@ -59,7 +59,7 @@ public struct HeroMoney: View {
         let round = whole ?? (kosha.meta?.pref("round_hero", "0") == "1")
         let text = round ? wholeMoney(minor, currency, theme.locale, sign: sign) : Money.format(minor, currency, theme.locale, sign: sign)
         let decimals = Money.decimals(currency)
-        let sep = Money.separators(theme.locale).decimal
+        let sep = Money.separators(Money.locale(for: currency, theme.locale)).decimal
         var styled = AttributedString(text)
         if !round, decimals > 0, let r = text.range(of: sep, options: .backwards) {
             let end = text.index(r.lowerBound, offsetBy: 1 + decimals, limitedBy: text.endIndex) ?? text.endIndex
@@ -80,7 +80,7 @@ public struct HeroMoney: View {
 public func wholeMoney(_ minor: Int64, _ currency: String, _ locale: Locale, sign: Sign = .natural) -> String {
     let f = NumberFormatter()
     f.numberStyle = .currency
-    f.locale = locale
+    f.locale = Money.locale(for: currency, locale)
     f.currencyCode = currency.uppercased()
     f.minimumFractionDigits = 0
     f.maximumFractionDigits = 0
